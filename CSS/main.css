@@ -1,0 +1,52 @@
+main{
+    background-color: aliceblue;
+}
+
+
+table{
+    align-items: center;
+    text-align: center;
+}
+th, td{
+    border: 1px;
+    border-color: black;
+    border-style: solid;
+}
+
+#titulo_filme{
+text-align: center;
+margin-left: 2%;
+margin-right: 2%;
+padding-left: 2%;
+padding-right: 2%;
+}
+
+#tabela_filme_1{
+
+    justify-content: center;
+    justify-items: center;
+
+}
+
+#filme_1{
+    margin: 2%;
+    text-align: center;
+    align-content: center;
+    align-items: center;
+}
+
+
+#filmes_home{
+    display: flexbox;
+}
+
+
+
+#div_sep{
+    background-color: burlywood;
+}
+
+
+
+
+
