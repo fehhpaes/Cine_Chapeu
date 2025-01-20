@@ -48,5 +48,40 @@ padding-right: 2%;
 
 
 
+#div_eventos{
+    display: flexbox;
+    text-align: center;
+    align-content: center;
+    align-items: center;
+}
 
+#div_poster{
+    text-align: center;
+    align-content: center;
+    align-items: center;
+    justify-content: center;
+    justify-items: center;
+    margin-top: 2%;
+}
+
+#div_img_poster{
+    text-align: center;
+    align-content: center;
+    align-items: center;
+    justify-content: center;
+    justify-items: center;
+}
+
+#div_mural{
+    display: flexbox;
+    text-align: center;
+    align-content: center;
+    align-items: center;
+    justify-content: center;
+    justify-items: center;
+
+    margin-top: 2%;
+    margin-bottom: 2%;
+
+}
 
