@@ -3,3 +3,12 @@ header{
     align-items: center;
     text-align: center;
 }
+
+#div_botoes{
+
+background-color: lightsteelblue;
+border-radius: 10px;
+padding-top: 5px;
+padding-bottom: 5px;
+
+}
