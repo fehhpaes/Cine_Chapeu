@@ -1,3 +1,5 @@
+/*Tela index.html*/
+
 main{
     background-color: aliceblue;
 }
@@ -84,4 +86,50 @@ padding-right: 2%;
     margin-bottom: 2%;
 
 }
+
+
+
+
+
+
+
+
+
+
+
+/*tela premiacoes.html*/
+
+#div_premiacao_1_2_3, #div_premiacao_titulo{
+
+    display: flexbox;
+    text-align: center;
+    align-content: center;
+    align-items: center;
+    justify-content: center;
+    justify-items: center;
+
+    margin-top: 2%;
+    margin-bottom: 2%;
+
+}
+
+
+
+/*tela indicacoes.html*/
+#div_indicacoes, #div_indicar{
+
+    display: flexbox;
+    text-align: center;
+    align-content: center;
+    align-items: center;
+    justify-content: center;
+    justify-items: center;
+
+    margin-top: 2%;
+    margin-bottom: 2%;
+
+
+}
+
+
 
