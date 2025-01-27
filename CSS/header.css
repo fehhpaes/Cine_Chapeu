@@ -2,6 +2,7 @@ header{
     background-color: blueviolet;
     align-items: center;
     text-align: center;
+    width: 100vw;
 }
 
 #div_botoes{
