@@ -4,50 +4,31 @@
 
 @layer base {
   body {
-    background-color: #07090e;
-    color: #f1f5f9;
-    font-family: 'Plus Jakarta Sans', sans-serif;
+    background-color: #09090b; /* zinc-950 */
+    color: #f4f4f5; /* zinc-100 */
+    font-family: 'DM Sans', 'Inter', sans-serif;
   }
 
-  h1, h2, h3, .font-cinematic {
-    font-family: 'Cinzel', serif;
+  h1, h2, h3, h4, .font-display {
+    font-family: 'Outfit', 'Oswald', sans-serif;
   }
 }
 
-/* Custom Scrollbar */
+/* Custom Sleek Scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #0c0f17;
+  background: #09090b;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #232d42;
-  border-radius: 4px;
+  background: #27272a; /* zinc-800 */
+  border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #ca8a04;
-}
-
-/* Glassmorphism helpers */
-.glass-panel {
-  background: rgba(17, 22, 34, 0.75);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.glass-gold {
-  background: radial-gradient(circle at top left, rgba(234, 179, 8, 0.15), rgba(17, 22, 34, 0.85));
-  border: 1px solid rgba(234, 179, 8, 0.3);
-}
-
-.gold-gradient-text {
-  background: linear-gradient(135deg, #fef08a 0%, #eab308 50%, #ca8a04 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  background: #f59e0b; /* amber-500 */
 }

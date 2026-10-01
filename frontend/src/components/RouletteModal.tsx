@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Dices, Sparkles, Trophy, X, Film, RefreshCw, CheckCircle2 } from 'lucide-react';
+import { Dices, Sparkles, Trophy, X, Film, Loader2 } from 'lucide-react';
 import { Member } from '../types/index.ts';
 import { membersApi } from '../api/client.ts';
 
@@ -52,17 +52,14 @@ export const RouletteModal: React.FC<RouletteModalProps> = ({
       setWinner(null);
       setError(null);
 
-      // Busca o vencedor sorteado no backend
       const result = await membersApi.drawRandom();
       const chosen = result.member;
 
-      // Encontrar índice do vencedor
       const chosenIdx = activeMembers.findIndex((m) => m._id === chosen._id);
       const targetIdx = chosenIdx !== -1 ? chosenIdx : 0;
 
-      // Animação de roleta acelerando e desacelerando
       let current = highlightedIndex;
-      let speed = 60; // ms
+      let speed = 60;
       const totalSteps = activeMembers.length * 4 + targetIdx;
 
       let step = 0;
@@ -73,7 +70,7 @@ export const RouletteModal: React.FC<RouletteModalProps> = ({
 
         if (step < totalSteps) {
           if (step > totalSteps - 10) {
-            speed += 35; // desacelera no final
+            speed += 35;
           }
           setTimeout(interval, speed);
         } else {
@@ -93,52 +90,48 @@ export const RouletteModal: React.FC<RouletteModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
-      <div className="relative w-full max-w-2xl bg-cinema-900 border border-gold-500/40 rounded-3xl p-6 sm:p-8 shadow-2xl shadow-gold-500/10 overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm animate-fadeIn">
+      <div className="relative w-full max-w-xl bg-zinc-900 border border-zinc-800 rounded-xl p-6 sm:p-7 shadow-2xl transition-all">
         
-        {/* Glow de fundo */}
-        <div className="absolute -top-24 -left-24 w-72 h-72 bg-gold-500/15 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-24 -right-24 w-72 h-72 bg-amber-600/15 rounded-full blur-3xl pointer-events-none" />
-
         {/* Botão Fechar */}
         <button
           onClick={onClose}
-          className="absolute top-5 right-5 p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+          className="absolute top-5 right-5 p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
         >
-          <X className="w-5 h-5" />
+          <X className="w-4 h-4" />
         </button>
 
         {/* Cabeçalho */}
-        <div className="text-center mb-6">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-tr from-amber-600 to-gold-400 text-cinema-950 shadow-lg shadow-gold-500/30 mb-3 animate-bounce-gentle">
-            <span className="text-3xl">🎩</span>
+        <div className="text-center mb-5">
+          <div className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-400 mb-2">
+            <span className="text-xl">🎩</span>
           </div>
-          <h2 className="text-2xl sm:text-3xl font-bold font-cinematic gold-gradient-text tracking-wide">
-            A Roleta do Chapéu Seletor
+          <h2 className="font-display text-xl sm:text-2xl font-black text-zinc-50 tracking-tight">
+            A Roleta do Chapéu
           </h2>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1">
-            Quem terá a honra (e a responsabilidade) de escolher o próximo filme?
+          <p className="text-xs text-zinc-400 mt-1">
+            Quem escolhe o próximo filme do grupo?
           </p>
         </div>
 
         {error && (
-          <div className="mb-4 p-3 rounded-xl bg-red-950/60 border border-red-500/40 text-red-300 text-xs text-center">
+          <div className="mb-4 p-3 rounded-lg bg-red-950/60 border border-red-500/30 text-red-300 text-xs text-center">
             {error}
           </div>
         )}
 
-        {/* Grade de Participantes Ativos */}
+        {/* Grade de Participantes */}
         {loading ? (
-          <div className="flex items-center justify-center py-12 text-gold-400 gap-2">
-            <RefreshCw className="w-5 h-5 animate-spin" />
-            <span className="text-sm">Carregando membros...</span>
+          <div className="flex items-center justify-center py-10 text-amber-500 gap-2">
+            <Loader2 className="w-5 h-5 animate-spin" />
+            <span className="text-xs text-zinc-400">Carregando membros...</span>
           </div>
         ) : activeMembers.length === 0 ? (
-          <div className="text-center py-8 text-slate-400 text-sm">
-            Nenhum membro ativo cadastrado no momento.
+          <div className="text-center py-8 text-zinc-500 text-xs">
+            Nenhum membro ativo cadastrado.
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 my-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 my-5">
             {activeMembers.map((member, idx) => {
               const isSelected = idx === highlightedIndex;
               const isFinalWinner = winner?._id === member._id;
@@ -146,60 +139,52 @@ export const RouletteModal: React.FC<RouletteModalProps> = ({
               return (
                 <div
                   key={member._id}
-                  className={`relative flex items-center gap-3 p-3 rounded-2xl transition-all duration-150 border ${
+                  className={`relative min-h-[85px] p-3 rounded-lg transition-all duration-150 border flex flex-col items-center justify-center text-center ${
                     isFinalWinner
-                      ? 'bg-gradient-to-r from-gold-500/30 to-amber-600/30 border-gold-400 shadow-lg shadow-gold-500/40 scale-105 ring-2 ring-gold-400'
+                      ? 'bg-amber-500/15 border-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.25)] ring-2 ring-amber-500 scale-105'
                       : isSelected
-                      ? 'bg-gold-500/20 border-gold-400/80 scale-102 shadow-md shadow-gold-500/20'
-                      : 'bg-cinema-850/80 border-white/5 opacity-70'
+                      ? 'bg-amber-500/10 border-amber-500/70 scale-102 ring-1 ring-amber-500/40'
+                      : 'bg-zinc-950/60 border-zinc-800/80 opacity-75 hover:opacity-100'
                   }`}
                 >
-                  <div className="relative">
-                    <img
-                      src={member.avatarUrl}
-                      alt={member.name}
-                      className={`w-11 h-11 rounded-full object-cover border-2 ${
-                        isFinalWinner || isSelected ? 'border-gold-400' : 'border-slate-700'
-                      }`}
-                    />
-                    {isFinalWinner && (
-                      <div className="absolute -top-1.5 -right-1.5 bg-gold-400 text-cinema-950 p-0.5 rounded-full">
-                        <Trophy className="w-3.5 h-3.5 fill-current" />
-                      </div>
-                    )}
-                  </div>
-                  <div className="min-w-0">
-                    <h4
-                      className={`text-sm font-bold truncate ${
-                        isFinalWinner || isSelected ? 'text-gold-300' : 'text-slate-200'
-                      }`}
-                    >
-                      {member.name}
-                    </h4>
-                    <span className="text-[10px] text-slate-400 flex items-center gap-1">
-                      <CheckCircle2 className="w-2.5 h-2.5 text-emerald-400" />
-                      Ativo
+                  {isFinalWinner && (
+                    <div className="absolute top-2 right-2 bg-amber-500 text-zinc-950 p-0.5 rounded-full">
+                      <Trophy className="w-2.5 h-2.5 fill-current" />
+                    </div>
+                  )}
+
+                  <h4
+                    className={`font-display text-lg sm:text-xl font-bold tracking-wide truncate max-w-full leading-none ${
+                      isFinalWinner || isSelected ? 'text-amber-400' : 'text-zinc-50'
+                    }`}
+                  >
+                    {member.name}
+                  </h4>
+
+                  {isFinalWinner && (
+                    <span className="text-[10px] font-bold text-amber-400 mt-1.5 font-sans">
+                      👑 Sorteado(a)!
                     </span>
-                  </div>
+                  )}
                 </div>
               );
             })}
           </div>
         )}
 
-        {/* Banner de Celebração do Vencedor */}
+        {/* Vencedor Anúncio */}
         {winner && (
-          <div className="p-4 rounded-2xl bg-gradient-to-r from-gold-500/20 via-amber-500/25 to-yellow-500/20 border border-gold-400/60 text-center animate-fadeIn mb-6">
-            <div className="flex items-center justify-center gap-2 text-gold-400 text-xs font-bold uppercase tracking-widest mb-1">
-              <Sparkles className="w-4 h-4" />
+          <div className="p-3.5 rounded-lg bg-amber-500/10 border border-amber-500/40 text-center animate-fadeIn mb-5">
+            <div className="flex items-center justify-center gap-1.5 text-amber-400 text-[10px] font-bold uppercase tracking-wider mb-0.5 font-display">
+              <Sparkles className="w-3 h-3" />
               <span>Sorteado pelo Chapéu</span>
-              <Sparkles className="w-4 h-4" />
+              <Sparkles className="w-3 h-3" />
             </div>
-            <h3 className="text-xl font-extrabold text-white font-cinematic">
-              Parabéns, {winner.name}! 🎬
+            <h3 className="font-display font-black text-xl text-zinc-50">
+              {winner.name} foi escolhido(a)! 🎬
             </h3>
-            <p className="text-xs text-slate-300 mt-1">
-              É a sua vez de escolher o filme da próxima sessão do Cine Chapéu!
+            <p className="text-[11px] text-zinc-400 mt-0.5">
+              Hora de definir o filme da próxima sessão!
             </p>
 
             {onSelectMemberForSession && (
@@ -208,7 +193,7 @@ export const RouletteModal: React.FC<RouletteModalProps> = ({
                   onSelectMemberForSession(winner);
                   onClose();
                 }}
-                className="mt-3 inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-gold-500 hover:bg-gold-400 text-cinema-950 shadow-md transition-transform active:scale-95"
+                className="mt-2.5 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold bg-amber-500 hover:bg-amber-400 text-zinc-950 shadow-sm transition-transform active:scale-95"
               >
                 <Film className="w-3.5 h-3.5 stroke-[2.5]" />
                 Registrar Sessão com {winner.name}
@@ -222,14 +207,14 @@ export const RouletteModal: React.FC<RouletteModalProps> = ({
           <button
             onClick={handleSpin}
             disabled={isSpinning || activeMembers.length === 0}
-            className={`w-full sm:w-auto min-w-[260px] flex items-center justify-center gap-3 px-8 py-4 rounded-2xl text-base font-extrabold transition-all duration-300 shadow-xl ${
+            className={`w-full sm:w-auto min-w-[220px] flex items-center justify-center gap-2 px-6 py-3 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${
               isSpinning
-                ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-white/10'
-                : 'bg-gradient-to-r from-gold-500 via-amber-500 to-yellow-400 text-cinema-950 hover:brightness-110 shadow-gold-500/30 hover:scale-105 active:scale-95'
+                ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed border border-zinc-700'
+                : 'bg-amber-500 hover:bg-amber-400 text-zinc-950 shadow-sm hover:shadow-amber-500/10 active:scale-95'
             }`}
           >
-            <Dices className={`w-5 h-5 ${isSpinning ? 'animate-spin' : ''}`} />
-            <span>{isSpinning ? 'Girando a Roleta...' : winner ? 'Sortear Novamente' : 'Girar a Roleta!'}</span>
+            <Dices className={`w-4 h-4 ${isSpinning ? 'animate-spin' : ''}`} />
+            <span>{isSpinning ? 'Girando a Roleta...' : winner ? 'Sortear Novamente' : 'Girar Roleta!'}</span>
           </button>
         </div>
 
@@ -237,3 +222,5 @@ export const RouletteModal: React.FC<RouletteModalProps> = ({
     </div>
   );
 };
+
+export default RouletteModal;

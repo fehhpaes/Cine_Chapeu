@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Film, Sparkles, RefreshCw, PlusCircle, Dices } from 'lucide-react';
-import { Session, Member, FilterOptions } from '../types/index.ts';
-import { sessionsApi, membersApi } from '../api/client.ts';
-import { SessionCard } from '../components/SessionCard.tsx';
+import { Link } from 'react-router-dom';
+import { Film, Loader2, Plus, Trophy, ArrowRight, Sparkles, FolderUp, ExternalLink } from 'lucide-react';
+import { Session, Member, FilterOptions, OscarCeremony } from '../types/index.ts';
+import { sessionsApi, membersApi, ceremoniesApi } from '../api/client.ts';
+import { MovieCard } from '../components/MovieCard.tsx';
 import { SessionFilter } from '../components/SessionFilter.tsx';
+import { NextMovieBanner } from '../components/NextMovieBanner.tsx';
+import { useAuth } from '../context/AuthContext.tsx';
 
 interface HomePageProps {
   onOpenCreateSession: () => void;
@@ -14,7 +17,10 @@ export const HomePage: React.FC<HomePageProps> = ({
   onOpenCreateSession,
   onOpenRoulette,
 }) => {
+  const { isAdmin } = useAuth();
   const [sessions, setSessions] = useState<Session[]>([]);
+  const [nextSession, setNextSession] = useState<Session | null>(null);
+  const [activeCeremony, setActiveCeremony] = useState<OscarCeremony | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
   const [filterOptions, setFilterOptions] = useState<FilterOptions>({ categories: [], years: [] });
   const [loading, setLoading] = useState(true);
@@ -35,12 +41,18 @@ export const HomePage: React.FC<HomePageProps> = ({
 
   const loadInitialData = async () => {
     try {
-      const [membersData, optionsData] = await Promise.all([
+      const [membersData, optionsData, nextSessionData, ceremonyRes] = await Promise.all([
         membersApi.getAll(),
         sessionsApi.getFilterOptions(),
+        sessionsApi.getNext().catch(() => null),
+        ceremoniesApi.getActive().catch(() => ({ ceremony: null, isOpen: false })),
       ]);
       setMembers(membersData);
       setFilterOptions(optionsData);
+      setNextSession(nextSessionData);
+      if (ceremonyRes.isOpen && ceremonyRes.ceremony) {
+        setActiveCeremony(ceremonyRes.ceremony);
+      }
     } catch (err) {
       console.error('Erro ao carregar opções iniciais:', err);
     }
@@ -73,43 +85,49 @@ export const HomePage: React.FC<HomePageProps> = ({
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       
-      {/* Hero Banner Cinematográfico */}
-      <div className="relative overflow-hidden rounded-3xl p-8 sm:p-12 mb-10 bg-gradient-to-r from-cinema-900 via-cinema-850 to-cinema-900 border border-gold-500/30 shadow-2xl">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-gold-500/10 rounded-full blur-3xl pointer-events-none" />
-        
-        <div className="relative z-10 max-w-2xl">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gold-500/15 border border-gold-500/30 text-gold-400 text-xs font-bold uppercase tracking-widest mb-4">
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>Sessões Oficiais do Grupo</span>
-          </div>
-          <h1 className="text-3xl sm:text-5xl font-black font-cinematic text-white leading-tight">
-            Cada Encontro, Uma Nova Obra-Prima.
-          </h1>
-          <p className="text-sm sm:text-base text-slate-300 mt-3 leading-relaxed">
-            Acompanhe o histórico de filmes assistidos pelo grupo, descubra quem foi o responsável por cada escolha e veja as notas e temas sorteados.
-          </p>
+      {/* 0. Banner de Votação do Oscar (Exibido quando a votação estiver aberta) */}
+      {activeCeremony && (
+        <Link
+          to="/votar"
+          className="mb-8 block p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-amber-500/20 via-amber-500/10 to-zinc-900 border border-amber-500/40 shadow-[0_0_30px_rgba(245,158,11,0.15)] hover:border-amber-400 hover:shadow-[0_0_40px_rgba(245,158,11,0.25)] transition-all group relative overflow-hidden"
+        >
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10">
+            <div className="flex items-center gap-3.5">
+              <div className="w-12 h-12 rounded-xl bg-amber-500 text-zinc-950 flex items-center justify-center flex-shrink-0 shadow-lg shadow-amber-500/30 group-hover:scale-105 transition-transform">
+                <Trophy className="w-6 h-6 fill-zinc-950 stroke-none" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wider text-amber-400 bg-amber-500/15 px-2 py-0.5 rounded border border-amber-500/30 font-display">
+                    <Sparkles className="w-3 h-3" />
+                    Votação Oficial Aberta
+                  </span>
+                </div>
+                <h3 className="font-display font-black text-lg sm:text-xl text-zinc-50 mt-1">
+                  Votação do Oscar {activeCeremony.year} está aberta!
+                </h3>
+                <p className="text-xs text-zinc-300 mt-0.5">
+                  Encerra em {new Date(activeCeremony.votingEndDate).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}. Vote nos seus favoritos e deixe seu recado!
+                </p>
+              </div>
+            </div>
 
-          {/* Ações Rápidas Hero */}
-          <div className="flex flex-wrap items-center gap-4 mt-6">
-            <button
-              onClick={onOpenRoulette}
-              className="flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-bold bg-gradient-to-r from-amber-500 to-gold-500 text-cinema-950 hover:brightness-110 shadow-lg shadow-gold-500/25 active:scale-95 transition-all"
-            >
-              <Dices className="w-4 h-4 stroke-[2.5]" />
-              <span>Girar a Roleta de Amigos</span>
-            </button>
-            <button
-              onClick={onOpenCreateSession}
-              className="flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold bg-cinema-800/80 hover:bg-cinema-700 text-white border border-white/10 active:scale-95 transition-all"
-            >
-              <PlusCircle className="w-4 h-4 text-gold-400" />
-              <span>Adicionar Sessão</span>
-            </button>
+            <div className="self-end sm:self-center flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-500 group-hover:bg-amber-400 text-zinc-950 text-xs font-black uppercase tracking-wider font-display shadow-md transition-all">
+              <span>Votar Agora</span>
+              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            </div>
           </div>
-        </div>
-      </div>
+        </Link>
+      )}
 
-      {/* Componente de Filtros Dinâmicos */}
+      {/* 1. Destaque: Banner do Próximo Filme (Hero Cinematográfico) */}
+      <NextMovieBanner
+        session={nextSession}
+        onOpenRoulette={onOpenRoulette}
+        onOpenCreateSession={onOpenCreateSession}
+      />
+
+      {/* 2. Componente de Filtros Dinâmicos */}
       <SessionFilter
         movieTitle={movieTitle}
         onMovieTitleChange={setMovieTitle}
@@ -125,46 +143,61 @@ export const HomePage: React.FC<HomePageProps> = ({
         onReset={handleResetFilters}
       />
 
-      {/* Cabeçalho da Lista de Sessões */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h2 className="text-xl sm:text-2xl font-bold font-cinematic text-white flex items-center gap-2">
-            <Film className="w-5 h-5 text-gold-500" />
-            <span>Catálogo de Exibições</span>
+      {/* 3. Cabeçalho do Catálogo com Acesso ao Drive do Grupo */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+        <div className="flex items-center gap-2">
+          <Film className="w-5 h-5 text-amber-500" />
+          <h2 className="font-display text-lg sm:text-xl font-bold text-zinc-50">
+            Todas as Sessões
           </h2>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Exibindo {sessions.length} {sessions.length === 1 ? 'sessão registrada' : 'sessões registradas'}
-          </p>
+          <span className="text-xs text-zinc-500 font-medium ml-1">
+            ({sessions.length} {sessions.length === 1 ? 'filme' : 'filmes'})
+          </span>
         </div>
+
+        {/* Botão de Acesso Rápido ao Google Drive do Grupo */}
+        {import.meta.env.VITE_GOOGLE_DRIVE_URL && (
+          <a
+            href={import.meta.env.VITE_GOOGLE_DRIVE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Acessar pasta compartilhada no Google Drive"
+            className="bg-zinc-800 hover:bg-zinc-700 text-zinc-100 hover:text-amber-400 border border-zinc-700 transition-colors px-4 py-2 rounded-md flex items-center gap-2 w-fit text-xs font-semibold shadow-sm group"
+          >
+            <FolderUp className="w-4 h-4 text-amber-500 group-hover:scale-110 transition-transform" />
+            <span>Acessar Acervo no Drive</span>
+            <ExternalLink className="w-3 h-3 text-zinc-400 group-hover:text-amber-400 transition-colors" />
+          </a>
+        )}
       </div>
 
-      {/* Grid de Pôsteres das Sessões */}
+      {/* 4. Grid de Pôsteres (MovieCard com aspect-[2/3]) */}
       {loading ? (
-        <div className="flex flex-col items-center justify-center py-20 text-gold-400 gap-3">
-          <RefreshCw className="w-8 h-8 animate-spin" />
-          <span className="text-sm font-medium">Buscando filmes do Cine Chapéu...</span>
+        <div className="flex flex-col items-center justify-center py-20 text-amber-500 gap-2.5">
+          <Loader2 className="w-6 h-6 animate-spin" />
+          <span className="text-xs text-zinc-400">Carregando catálogo...</span>
         </div>
       ) : sessions.length === 0 ? (
-        <div className="glass-panel rounded-3xl p-12 text-center border border-white/10 max-w-xl mx-auto my-8">
-          <div className="w-16 h-16 rounded-full bg-cinema-800 flex items-center justify-center mx-auto mb-4 text-slate-500">
-            <Film className="w-8 h-8" />
-          </div>
-          <h3 className="text-lg font-bold text-white mb-1">Nenhuma sessão encontrada</h3>
-          <p className="text-xs text-slate-400 mb-6">
-            Nenhum filme corresponde aos filtros atuais ou ainda não há sessões registradas.
+        <div className="bg-zinc-900/60 rounded-xl p-10 text-center border border-zinc-800 max-w-md mx-auto my-8">
+          <Film className="w-10 h-10 text-zinc-600 mx-auto mb-3 stroke-[1.5]" />
+          <h3 className="font-display font-bold text-base text-zinc-200 mb-1">Nenhuma sessão encontrada</h3>
+          <p className="text-xs text-zinc-500 mb-5">
+            Nenhum filme corresponde aos filtros aplicados.
           </p>
-          <button
-            onClick={onOpenCreateSession}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold bg-gold-500 text-cinema-950 hover:bg-gold-400 transition-colors"
-          >
-            <PlusCircle className="w-4 h-4" />
-            Cadastrar Primeira Sessão
-          </button>
+          {isAdmin && (
+            <button
+              onClick={onOpenCreateSession}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold bg-amber-500 text-zinc-950 hover:bg-amber-400 transition-colors"
+            >
+              <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+              Cadastrar Nova Sessão
+            </button>
+          )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
           {sessions.map((session) => (
-            <SessionCard key={session._id} session={session} />
+            <MovieCard key={session._id} session={session} />
           ))}
         </div>
       )}
@@ -172,3 +205,5 @@ export const HomePage: React.FC<HomePageProps> = ({
     </div>
   );
 };
+
+export default HomePage;

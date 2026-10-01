@@ -31,6 +31,12 @@ const sessionSchema = new Schema<ISessionDocument>(
       default: '',
       trim: true,
     },
+    tier: {
+      type: String,
+      default: 'Unranked',
+      trim: true,
+      index: true,
+    },
   },
   {
     timestamps: true,

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, Filter, RotateCcw, User, Calendar, Tag } from 'lucide-react';
+import { Search, RotateCcw, User, Calendar, Tag } from 'lucide-react';
 import { Member } from '../types/index.ts';
 
 interface SessionFilterProps {
@@ -36,52 +36,54 @@ export const SessionFilter: React.FC<SessionFilterProps> = ({
   );
 
   return (
-    <div className="w-full glass-panel rounded-2xl p-5 border border-white/10 shadow-xl mb-8">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2 text-gold-400 font-semibold text-sm">
-          <Filter className="w-4 h-4" />
-          <span>Filtros do Catálogo</span>
+    <div className="w-full bg-zinc-900/90 rounded-xl p-4 sm:p-5 border border-zinc-800 shadow-md mb-8 transition-all">
+      <div className="flex items-center justify-between mb-3.5">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-semibold uppercase tracking-wider text-amber-500 font-display">
+            Filtros do Catálogo
+          </span>
         </div>
         {hasActiveFilters && (
           <button
             onClick={onReset}
-            className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-gold-400 transition-colors px-2.5 py-1 rounded-lg bg-cinema-800/60 hover:bg-cinema-800"
+            className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-amber-400 transition-colors px-2.5 py-1 rounded-md bg-zinc-800/80 hover:bg-zinc-800 border border-zinc-700/60"
           >
             <RotateCcw className="w-3 h-3" />
-            <span>Limpar Filtros</span>
+            <span>Limpar</span>
           </button>
         )}
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        
         {/* Busca por Título */}
-        <div className="relative">
-          <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
-            Filme
+        <div>
+          <label className="block text-[11px] font-medium text-zinc-400 mb-1">
+            Buscar Filme
           </label>
           <div className="relative">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
-              placeholder="Buscar por título..."
+              placeholder="Digite o título..."
               value={movieTitle}
               onChange={(e) => onMovieTitleChange(e.target.value)}
-              className="w-full pl-9 pr-3 py-2.5 bg-cinema-900/80 border border-white/10 rounded-xl text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-gold-500/80 focus:ring-1 focus:ring-gold-500/50 transition-all"
+              className="w-full pl-8 pr-3 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-xs text-zinc-50 placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-all"
             />
           </div>
         </div>
 
         {/* Filtro por Membro */}
         <div>
-          <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+          <label className="block text-[11px] font-medium text-zinc-400 mb-1">
             Membro Responsável
           </label>
           <div className="relative">
-            <User className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <User className="w-3.5 h-3.5 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <select
               value={selectedMember}
               onChange={(e) => onMemberChange(e.target.value)}
-              className="w-full pl-9 pr-8 py-2.5 bg-cinema-900/80 border border-white/10 rounded-xl text-sm text-slate-200 focus:outline-none focus:border-gold-500/80 focus:ring-1 focus:ring-gold-500/50 appearance-none cursor-pointer transition-all"
+              className="w-full pl-8 pr-7 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-xs text-zinc-50 focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 appearance-none cursor-pointer transition-all"
             >
               <option value="">Todos os Membros</option>
               {members.map((m) => (
@@ -90,7 +92,7 @@ export const SessionFilter: React.FC<SessionFilterProps> = ({
                 </option>
               ))}
             </select>
-            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-xs">
+            <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-500 text-[10px]">
               ▼
             </div>
           </div>
@@ -98,15 +100,15 @@ export const SessionFilter: React.FC<SessionFilterProps> = ({
 
         {/* Filtro por Categoria Sorteada */}
         <div>
-          <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+          <label className="block text-[11px] font-medium text-zinc-400 mb-1">
             Categoria Sorteada
           </label>
           <div className="relative">
-            <Tag className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <Tag className="w-3.5 h-3.5 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <select
               value={selectedCategory}
               onChange={(e) => onCategoryChange(e.target.value)}
-              className="w-full pl-9 pr-8 py-2.5 bg-cinema-900/80 border border-white/10 rounded-xl text-sm text-slate-200 focus:outline-none focus:border-gold-500/80 focus:ring-1 focus:ring-gold-500/50 appearance-none cursor-pointer transition-all"
+              className="w-full pl-8 pr-7 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-xs text-zinc-50 focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 appearance-none cursor-pointer transition-all"
             >
               <option value="">Todas as Categorias</option>
               {categories.map((cat) => (
@@ -115,7 +117,7 @@ export const SessionFilter: React.FC<SessionFilterProps> = ({
                 </option>
               ))}
             </select>
-            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-xs">
+            <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-500 text-[10px]">
               ▼
             </div>
           </div>
@@ -123,15 +125,15 @@ export const SessionFilter: React.FC<SessionFilterProps> = ({
 
         {/* Filtro por Ano */}
         <div>
-          <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+          <label className="block text-[11px] font-medium text-zinc-400 mb-1">
             Ano de Exibição
           </label>
           <div className="relative">
-            <Calendar className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <Calendar className="w-3.5 h-3.5 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <select
               value={selectedYear}
               onChange={(e) => onYearChange(e.target.value)}
-              className="w-full pl-9 pr-8 py-2.5 bg-cinema-900/80 border border-white/10 rounded-xl text-sm text-slate-200 focus:outline-none focus:border-gold-500/80 focus:ring-1 focus:ring-gold-500/50 appearance-none cursor-pointer transition-all"
+              className="w-full pl-8 pr-7 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-xs text-zinc-50 focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 appearance-none cursor-pointer transition-all"
             >
               <option value="">Todos os Anos</option>
               {years.map((yr) => (
@@ -140,7 +142,7 @@ export const SessionFilter: React.FC<SessionFilterProps> = ({
                 </option>
               ))}
             </select>
-            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-xs">
+            <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-500 text-[10px]">
               ▼
             </div>
           </div>

@@ -3,28 +3,43 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Navbar } from './components/Navbar.tsx';
 import { HomePage } from './pages/HomePage.tsx';
 import { DrawPage } from './pages/DrawPage.tsx';
-import { OscarPage } from './pages/OscarPage.tsx';
+import { AwardsPage } from './pages/AwardsPage.tsx';
+import { TierListPage } from './pages/TierListPage.tsx';
+import { VotingPage } from './pages/VotingPage.tsx';
+import { PresenterDashboard } from './pages/PresenterDashboard.tsx';
 import { RouletteModal } from './components/RouletteModal.tsx';
 import { CreateSessionModal } from './components/CreateSessionModal.tsx';
+import { AdminPinModal } from './components/AdminPinModal.tsx';
+import { AuthProvider } from './context/AuthContext.tsx';
 import { Member } from './types/index.ts';
 
 const AppContent: React.FC = () => {
   const [isRouletteOpen, setIsRouletteOpen] = useState(false);
   const [isCreateSessionOpen, setIsCreateSessionOpen] = useState(false);
   const [selectedMemberForSession, setSelectedMemberForSession] = useState<Member | null>(null);
+  const [selectedCategoryForSession, setSelectedCategoryForSession] = useState<string>('');
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  const handleSelectMemberForSession = (member: Member) => {
+  const handleSelectMemberForSession = (member: Member, category?: string) => {
     setSelectedMemberForSession(member);
+    if (category) {
+      setSelectedCategoryForSession(category);
+    }
     setIsCreateSessionOpen(true);
   };
 
   const handleCloseCreateSession = () => {
     setIsCreateSessionOpen(false);
     setSelectedMemberForSession(null);
+    setSelectedCategoryForSession('');
+  };
+
+  const handleSessionCreated = () => {
+    setRefreshKey((prev) => prev + 1);
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-cinema-950 text-slate-100">
+    <div className="min-h-screen flex flex-col bg-zinc-950 text-zinc-100 selection:bg-amber-500 selection:text-zinc-950 font-sans">
       {/* Barra de Navegação Superior */}
       <Navbar onOpenCreateSession={() => setIsCreateSessionOpen(true)} />
 
@@ -35,6 +50,7 @@ const AppContent: React.FC = () => {
             path="/"
             element={
               <HomePage
+                key={refreshKey}
                 onOpenCreateSession={() => setIsCreateSessionOpen(true)}
                 onOpenRoulette={() => setIsRouletteOpen(true)}
               />
@@ -46,7 +62,10 @@ const AppContent: React.FC = () => {
               <DrawPage onSelectMemberForSession={handleSelectMemberForSession} />
             }
           />
-          <Route path="/oscar" element={<OscarPage />} />
+          <Route path="/tierlist" element={<TierListPage />} />
+          <Route path="/oscar" element={<AwardsPage />} />
+          <Route path="/votar" element={<VotingPage />} />
+          <Route path="/dashboard" element={<PresenterDashboard />} />
         </Routes>
       </main>
 
@@ -61,22 +80,23 @@ const AppContent: React.FC = () => {
       <CreateSessionModal
         isOpen={isCreateSessionOpen}
         onClose={handleCloseCreateSession}
-        onSessionCreated={() => {
-          // Recarrega páginas se necessário
-          window.location.reload();
-        }}
+        onSessionCreated={handleSessionCreated}
         initialMember={selectedMemberForSession}
+        initialCategory={selectedCategoryForSession}
       />
 
-      {/* Rodapé Elegante */}
-      <footer className="border-t border-white/5 py-8 bg-cinema-950/80 text-center text-xs text-slate-500">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+      {/* Modal Global de Autenticação Admin PIN */}
+      <AdminPinModal />
+
+      {/* Rodapé Minimalista */}
+      <footer className="border-t border-zinc-800/80 py-6 bg-zinc-950 text-center text-xs text-zinc-500">
+        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <span className="text-lg">🎩</span>
-            <span className="font-cinematic font-bold text-slate-300">Cine Chapéu</span>
-            <span>— Sistema de Registro & Roleta de Cinema</span>
+            <span>🎩</span>
+            <span className="font-display font-bold text-zinc-300">Cine Chapéu</span>
+            <span>— Clube de Cinema & Roleta</span>
           </div>
-          <p>Feito para amigos apaixonados por cinema 🍿</p>
+          <p>Desenvolvido para amigos cinéfilos 🍿</p>
         </div>
       </footer>
     </div>
@@ -86,7 +106,9 @@ const AppContent: React.FC = () => {
 export const App: React.FC = () => {
   return (
     <BrowserRouter>
-      <AppContent />
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
     </BrowserRouter>
   );
 };
