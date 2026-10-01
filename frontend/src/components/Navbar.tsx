@@ -2,6 +2,7 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Film, Dices, Trophy, Layers, Plus, Vote as VoteIcon, Presentation, Lock, Unlock } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.tsx';
+import { CineChapeuLogo } from './CineChapeuLogo.tsx';
 
 interface NavbarProps {
   onOpenCreateSession: () => void;
@@ -18,16 +19,16 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenCreateSession }) => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           
-          {/* Logo Minimalista & Tipografia Display */}
-          <Link to="/" className="flex items-center gap-3 group">
-            <div className="w-9 h-9 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-lg shadow-sm group-hover:border-amber-500/50 transition-colors">
-              <span>🎩</span>
+          {/* Logo Minimalista & Tipografia Display Cinematográfica */}
+          <Link to="/" className="flex items-center gap-3 group shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center shadow-sm group-hover:border-amber-500/50 group-hover:shadow-amber-500/10 transition-all shrink-0">
+              <CineChapeuLogo className="w-6 h-6 text-amber-500 group-hover:scale-105 transition-transform" />
             </div>
             <div className="flex flex-col">
-              <span className="font-display text-lg font-extrabold tracking-tight text-zinc-50 group-hover:text-amber-400 transition-colors">
+              <span className="font-cinema text-lg sm:text-xl font-bold tracking-wider text-zinc-50 group-hover:text-amber-400 transition-colors whitespace-nowrap">
                 CINE CHAPÉU
               </span>
-              <span className="text-[10px] font-medium text-zinc-500 tracking-widest uppercase -mt-1 font-sans">
+              <span className="hidden sm:block text-[10px] font-semibold text-zinc-400 tracking-[0.25em] uppercase -mt-0.5 font-sans">
                 Clube de Cinema
               </span>
             </div>

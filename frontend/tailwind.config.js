@@ -15,6 +15,7 @@ export default {
       fontFamily: {
         display: ['Outfit', 'Oswald', 'sans-serif'],
         sans: ['DM Sans', 'Inter', 'sans-serif'],
+        cinema: ['Cinzel', 'serif'],
       },
       borderRadius: {
         'card': '0.75rem', // 12px (rounded-xl)

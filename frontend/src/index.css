@@ -12,6 +12,10 @@
   h1, h2, h3, h4, .font-display {
     font-family: 'Outfit', 'Oswald', sans-serif;
   }
+
+  .font-cinema {
+    font-family: 'Cinzel', serif;
+  }
 }
 
 /* Custom Sleek Scrollbar */

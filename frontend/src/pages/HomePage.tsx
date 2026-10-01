@@ -83,9 +83,13 @@ export const HomePage: React.FC<HomePageProps> = ({
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      
-      {/* 0. Banner de Votação do Oscar (Exibido quando a votação estiver aberta) */}
+    <div className="relative min-h-[calc(100vh-4rem)] bg-[url('/cinema-bg.jpg')] bg-cover bg-center bg-no-repeat bg-fixed">
+      {/* Camada de Overlay Escura com Blur Cinematográfico */}
+      <div className="absolute inset-0 bg-gradient-to-b from-zinc-950/85 via-zinc-950/80 to-zinc-950/95 backdrop-blur-[2px] z-0 pointer-events-none" />
+
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
+        {/* 0. Banner de Votação do Oscar (Exibido quando a votação estiver aberta) */}
       {activeCeremony && (
         <Link
           to="/votar"
@@ -202,6 +206,7 @@ export const HomePage: React.FC<HomePageProps> = ({
         </div>
       )}
 
+      </div>
     </div>
   );
 };

@@ -11,6 +11,7 @@ import { RouletteModal } from './components/RouletteModal.tsx';
 import { CreateSessionModal } from './components/CreateSessionModal.tsx';
 import { AdminPinModal } from './components/AdminPinModal.tsx';
 import { AuthProvider } from './context/AuthContext.tsx';
+import { CineChapeuLogo } from './components/CineChapeuLogo.tsx';
 import { Member } from './types/index.ts';
 
 const AppContent: React.FC = () => {
@@ -92,9 +93,9 @@ const AppContent: React.FC = () => {
       <footer className="border-t border-zinc-800/80 py-6 bg-zinc-950 text-center text-xs text-zinc-500">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <span>🎩</span>
-            <span className="font-display font-bold text-zinc-300">Cine Chapéu</span>
-            <span>— Clube de Cinema & Roleta</span>
+            <CineChapeuLogo className="w-4 h-4 text-amber-500" />
+            <span className="font-cinema font-bold tracking-wider text-zinc-200">Cine Chapéu</span>
+            <span className="text-zinc-500">— Clube de Cinema & Roleta</span>
           </div>
           <p>Desenvolvido para amigos cinéfilos 🍿</p>
         </div>

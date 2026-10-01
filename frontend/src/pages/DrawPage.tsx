@@ -193,21 +193,25 @@ export const DrawPage: React.FC<DrawPageProps> = ({ onSelectMemberForSession }) 
   const activeMembers = members.filter((m) => m.active);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      
-      {/* Cabeçalho */}
-      <div className="text-center max-w-2xl mx-auto mb-8">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-semibold uppercase tracking-wider mb-2.5 font-display">
-          <Dices className="w-3.5 h-3.5" />
-          <span>Sorteador Oficial</span>
+    <div className="relative min-h-[calc(100vh-4rem)] bg-[url('/cinema-bg.jpg')] bg-cover bg-center bg-no-repeat bg-fixed">
+      {/* Camada de Overlay Escura com Blur Cinematográfico */}
+      <div className="absolute inset-0 bg-gradient-to-b from-zinc-950/85 via-zinc-950/80 to-zinc-950/95 backdrop-blur-[2px] z-0 pointer-events-none" />
+
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
+        {/* Cabeçalho */}
+        <div className="text-center max-w-2xl mx-auto mb-8">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-amber-500/15 border border-amber-500/30 text-amber-400 text-xs font-semibold uppercase tracking-wider mb-2.5 font-display shadow-sm">
+            <Dices className="w-3.5 h-3.5" />
+            <span>Sorteador Oficial</span>
+          </div>
+          <h1 className="font-display text-3xl sm:text-5xl font-black text-zinc-50 tracking-tight drop-shadow-md">
+            A Roleta do Chapéu
+          </h1>
+          <p className="text-xs sm:text-sm text-zinc-300 mt-2 max-w-md mx-auto">
+            Sorteie o amigo responsável e o tema da próxima sessão de cinema.
+          </p>
         </div>
-        <h1 className="font-display text-3xl sm:text-5xl font-black text-zinc-50 tracking-tight">
-          A Roleta do Chapéu
-        </h1>
-        <p className="text-xs sm:text-sm text-zinc-400 mt-2 max-w-md mx-auto">
-          Sorteie o amigo responsável e o tema da próxima sessão de cinema.
-        </p>
-      </div>
 
       {error && (
         <div className="mb-6 p-3.5 rounded-lg bg-red-950/60 border border-red-500/30 text-red-300 text-xs text-center max-w-lg mx-auto">
@@ -474,6 +478,7 @@ export const DrawPage: React.FC<DrawPageProps> = ({ onSelectMemberForSession }) 
 
       </div>
 
+      </div>
     </div>
   );
 };
