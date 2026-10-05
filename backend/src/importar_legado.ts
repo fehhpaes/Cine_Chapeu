@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import fs from 'fs';
+import csv from 'csv-parser';
 import axios from 'axios';
 import dotenv from 'dotenv';
 import path from 'path';
@@ -9,37 +10,32 @@ import { Member } from './models/Member.js';
 
 // Compatibilidade de diretório para CJS / TSX
 const currentDir = typeof __dirname !== 'undefined' ? __dirname : path.resolve(process.cwd(), 'src');
-
-// Carrega variáveis de ambiente
 dotenv.config({ path: path.resolve(currentDir, '../.env') });
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
 const TMDB_API_KEY = process.env.TMDB_API_KEY || '909fb675e8861720c7844b3062672f83';
 const TMDB_BASE_URL = process.env.TMDB_BASE_URL || 'https://api.themoviedb.org/3';
 
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 async function connectDB() {
   const uri = process.env.MONGODB_URI;
   if (!uri) {
     throw new Error('MONGODB_URI não encontrada nas variáveis de ambiente!');
   }
-  console.log('🔄 Conectando ao MongoDB...');
+  console.log('🔄 Conectando ao MongoDB Atlas...');
   await mongoose.connect(uri, { serverSelectionTimeoutMS: 10000 });
-  console.log('📦 Conectado ao MongoDB com sucesso!');
+  console.log('📦 Conectado ao MongoDB Atlas com sucesso!');
 }
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
-// Normalizador e limpador de títulos para busca precisa no TMDB
 function cleanMovieTitle(raw: string): { title: string; year?: number } {
   let cleaned = raw
     .replace(/\s*\((?:dub|leg|dublado|legendado|versão do diretor|versao do diretor)\)/gi, '')
     .replace(/\s*\[.*?\]/g, '')
     .trim();
 
-  // Remove aspas
   cleaned = cleaned.replace(/^["']|["']$/g, '').trim();
 
-  // Detecta ano entre parênteses ex: (1975)
   const yearMatch = cleaned.match(/\((\d{4})\)/);
   let year: number | undefined;
   if (yearMatch) {
@@ -47,7 +43,6 @@ function cleanMovieTitle(raw: string): { title: string; year?: number } {
     cleaned = cleaned.replace(/\(\d{4}\)/, '').trim();
   }
 
-  // Tratamentos para títulos específicos das planilhas
   const aliasMap: Record<string, string> = {
     'stalone cobra': 'Cobra',
     'frankweenie': 'Frankenweenie',
@@ -78,6 +73,12 @@ function cleanMovieTitle(raw: string): { title: string; year?: number } {
     'flamin hot': 'Flamin\' Hot: O Sabor do Sucesso',
     'o grinch': 'O Grinch',
     'coherence': 'Coherence',
+    'homem aranha: sem volta para casa': 'Homem-Aranha: Sem Volta Para Casa',
+    'trovão tropical': 'Trovão Tropical',
+    'a chave magica': 'A Chave Mágica',
+    'adeus lenin': 'Adeus, Lenin!',
+    'kung fu futebol clube': 'Kung Futebol Clube',
+    'onde os fracos não tem vez': 'Onde os Fracos Não Têm Vez',
   };
 
   const lower = cleaned.toLowerCase();
@@ -99,8 +100,7 @@ async function getMovieByImdb(imdbId: string) {
       timeout: 10000,
     });
     return res.data.movie_results?.[0] || null;
-  } catch (error: any) {
-    console.error(`❌ Erro ao buscar IMDb ${imdbId}:`, error.message);
+  } catch (error) {
     return null;
   }
 }
@@ -126,7 +126,6 @@ async function getMovieByTitle(rawTitle: string) {
       return res.data.results[0];
     }
 
-    // Fallback sem ano caso não tenha encontrado
     if (year) {
       const resFallback = await axios.get(`${TMDB_BASE_URL}/search/movie`, {
         params: { api_key: TMDB_API_KEY, query: title, language: 'pt-BR' },
@@ -136,13 +135,11 @@ async function getMovieByTitle(rawTitle: string) {
     }
 
     return null;
-  } catch (error: any) {
-    console.error(`❌ Erro ao buscar Título "${rawTitle}":`, error.message);
+  } catch (error) {
     return null;
   }
 }
 
-// Gera ID determinístico para filmes que não forem encontrados no TMDB
 function generateFallbackTmdbId(title: string): number {
   let hash = 0;
   for (let i = 0; i < title.length; i++) {
@@ -197,7 +194,6 @@ async function upsertMovie(tmdbData: any, rawTitle?: string) {
 
 async function upsertMember(name: string) {
   const cleanName = name.replace(/\s+/g, ' ').trim();
-  // Padroniza nomes
   const nameMap: Record<string, string> = {
     'felipe p.': 'Felipe P',
     'felipe p': 'Felipe P',
@@ -214,10 +210,10 @@ async function upsertMember(name: string) {
   );
 }
 
-// Mapas de conversão de meses
 const monthMapAbrev: Record<string, number> = {
   jan: 0, fev: 1, mar: 2, abr: 3, mai: 4, jun: 5,
   jul: 6, ago: 7, set: 8, out: 9, nov: 10, dez: 11,
+  abril: 3, maio: 4, junho: 5, julho: 6,
 };
 
 const monthMapCompleto: Record<string, number> = {
@@ -226,54 +222,75 @@ const monthMapCompleto: Record<string, number> = {
   outubro: 9, novembro: 10, dezembro: 11,
 };
 
+function parseCSVLine(line: string): string[] {
+  const result: string[] = [];
+  let current = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    if (char === '"' || char === "'") {
+      inQuotes = !inQuotes;
+    } else if (char === ',' && !inQuotes) {
+      result.push(current.trim());
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+  result.push(current.trim());
+  return result;
+}
+
 async function processCSV() {
   await connectDB();
 
   // =========================================================================
-  // FASE 1: Tabela 1 - Legado (Data, Nome, Pagina)
+  // FASE 1: TABELA LEGADO (Acervo Histórico)
   // =========================================================================
-  console.log('\n🚀 [Fase 1/2] Processando Tabela 1 (Legado)...');
+  console.log('\n🚀 Processando Tabela 1 (Legado)...');
   const defaultMember = await upsertMember('Acervo Histórico');
-  const tabela1Path = path.resolve(__dirname, 'tabela1.csv');
+  const monthCounterT1: Record<string, number> = {};
+  const tabela1Path = path.resolve(currentDir, 'tabela1.csv');
 
   if (fs.existsSync(tabela1Path)) {
-    const fileContent = fs.readFileSync(tabela1Path, 'utf-8');
-    const lines = fileContent.split(/\r?\n/).filter((l) => l.trim().length > 0);
-    let countTab1 = 0;
+    const content = fs.readFileSync(tabela1Path, 'utf-8');
+    const lines = content.split(/\r?\n/).filter((l) => l.trim().length > 0);
+    let countT1 = 0;
 
     for (const rawLine of lines) {
-      const parts = rawLine.split(',').map((p) => p.trim());
-      if (parts.length < 3 || parts[0].toLowerCase().includes('cine') || parts[0].toLowerCase() === 'data') {
-        continue;
-      }
+      const parts = parseCSVLine(rawLine);
+      if (parts.length < 3) continue;
 
-      const dateStr = parts[0];
+      const dateStr = parts[0].toLowerCase();
       const movieTitle = parts[1];
       const pageUrl = parts[2];
 
       const imdbMatch = pageUrl.match(/tt\d+/);
       const imdbId = imdbMatch ? imdbMatch[0] : null;
 
-      let tmdbData = null;
-      if (imdbId) {
-        tmdbData = await getMovieByImdb(imdbId);
-        await sleep(100);
-      }
+      if (!imdbId) continue;
 
-      if (!tmdbData && movieTitle) {
-        tmdbData = await getMovieByTitle(movieTitle);
-        await sleep(100);
-      }
-
+      const tmdbData = await getMovieByImdb(imdbId);
       const movie = await upsertMovie(tmdbData, movieTitle);
+
       if (movie) {
         let exhibitionDate = new Date();
+
         if (dateStr) {
-          const dateParts = dateStr.toLowerCase().replace('.', '').split('-');
-          if (dateParts.length === 2) {
-            const month = monthMapAbrev[dateParts[0]] ?? 0;
-            const year = 2000 + parseInt(dateParts[1], 10);
-            exhibitionDate = new Date(year, month, 15, 12, 0, 0);
+          if (!monthCounterT1[dateStr]) monthCounterT1[dateStr] = 1;
+          else monthCounterT1[dateStr]++;
+
+          const weekNum = monthCounterT1[dateStr];
+          const dateMatch = dateStr.match(/([a-zá-ú]+)[\.\-\/]*(\d{2})/i);
+
+          if (dateMatch) {
+            const monthToken = dateMatch[1].toLowerCase().replace('.', '');
+            const month = monthMapAbrev[monthToken] ?? monthMapCompleto[monthToken] ?? 0;
+            const year = 2000 + parseInt(dateMatch[2], 10);
+            const lastDayOfMonth = new Date(year, month + 1, 0).getDate();
+            const day = Math.min(1 + (weekNum - 1) * 7, lastDayOfMonth);
+            exhibitionDate = new Date(year, month, day, 12, 0, 0);
           }
         }
 
@@ -289,83 +306,138 @@ async function processCSV() {
           { upsert: true }
         );
 
-        countTab1++;
-        console.log(`✅ [Tab 1 - #${countTab1}] Salvo: ${movie.title} (${dateStr})`);
+        countT1++;
+        console.log(`✅ [Legado - #${countT1}] ${movie.title} (${exhibitionDate.getFullYear()}) -> ${exhibitionDate.toLocaleDateString('pt-BR')}`);
       }
+      await sleep(250); // Anti-rate limit
     }
-    console.log(`🏁 Tabela 1 concluída: ${countTab1} filmes sincronizados com sucesso!`);
+    console.log(`🏁 Tabela 1 concluída: ${countT1} filmes importados com sucesso!\n`);
   } else {
-    console.warn('⚠️ Arquivo tabela1.csv não encontrado.');
+    console.log('⚠️ Ficheiro tabela1.csv não encontrado.');
   }
 
-  // =========================================================================
-  // FASE 2: Tabela 2 - Atual (Semana, Tema, Filme, Pessoa)
-  // =========================================================================
-  console.log('\n🚀 [Fase 2/2] Processando Tabela 2 (Atual)...');
-  const tabela2Path = path.resolve(__dirname, 'tabela2.csv');
+  await sleep(1500);
 
-  if (fs.existsSync(tabela2Path)) {
-    const fileContent = fs.readFileSync(tabela2Path, 'utf-8');
-    const lines = fileContent.split(/\r?\n/).filter((l) => l.trim().length > 0);
+  // =========================================================================
+  // FASE 2: TABELAS ATUAIS (Por Ano: 2024, 2025, 2026...)
+  // =========================================================================
+  const tabelasAtuais = [
+    { file: 'tabela2_2024.csv', fallback: 'tabela2.csv', year: 2024 },
+    { file: 'tabela2_2025.csv', fallback: '', year: 2025 },
+    { file: 'tabela2_2026.csv', fallback: '', year: 2026 },
+  ];
+
+  for (const tabela of tabelasAtuais) {
+    let targetPath = path.resolve(currentDir, tabela.file);
+
+    if (!fs.existsSync(targetPath) && tabela.fallback) {
+      const fallbackPath = path.resolve(currentDir, tabela.fallback);
+      if (fs.existsSync(fallbackPath)) {
+        targetPath = fallbackPath;
+      }
+    }
+
+    if (!fs.existsSync(targetPath)) {
+      console.log(`⚠️ Ficheiro ${tabela.file} não encontrado. Saltando...`);
+      continue;
+    }
+
+    console.log(`🚀 Processando ${path.basename(targetPath)} (Ano base: ${tabela.year})...`);
+    const content = fs.readFileSync(targetPath, 'utf-8');
+    const lines = content.split(/\r?\n/).filter((l) => l.trim().length > 0);
+
     let currentMonth = 0;
-    let countTab2 = 0;
+    let semanaIdx = 0;
+    let filmeIdx = 2;
+    let pessoaIdx = 3;
+    let temaIdx = 1;
+    let tipoIdx = -1;
+    let legDubIdx = -1;
+    let countYear = 0;
 
     for (const rawLine of lines) {
-      const parts = rawLine.split(',').map((p) => p.trim());
+      const parts = parseCSVLine(rawLine);
       if (parts.length === 0) continue;
 
-      const firstCol = parts[0]?.toLowerCase() || '';
+      // 1. Detetor universal de Mês: vasculha todas as colunas da linha
+      const monthFound = parts.find((p) => {
+        const clean = p.toLowerCase().trim();
+        return monthMapCompleto[clean] !== undefined;
+      });
 
-      if (monthMapCompleto[firstCol] !== undefined) {
-        currentMonth = monthMapCompleto[firstCol];
-        console.log(`📅 Bloco do Mês: ${parts[0]}`);
+      if (monthFound) {
+        currentMonth = monthMapCompleto[monthFound.toLowerCase().trim()];
+        console.log(`📅 [${tabela.year}] Bloco do Mês: ${monthFound}`);
         continue;
       }
 
-      if (firstCol === 'semana' || firstCol === 'meses') {
+      // 2. Detecta linha de cabeçalho das colunas e mapeia os índices dinamicamente
+      const lowerParts = parts.map((p) => p.toLowerCase().trim());
+      const hasSemana = lowerParts.some((p) => p.includes('semana'));
+      const hasFilme = lowerParts.some((p) => p.includes('filme') || p.includes('nome'));
+
+      if (hasSemana && hasFilme) {
+        semanaIdx = lowerParts.findIndex((p) => p.includes('semana'));
+        filmeIdx = lowerParts.findIndex((p) => p.includes('filme') || p.includes('nome'));
+        pessoaIdx = lowerParts.findIndex((p) => p.includes('pessoa'));
+        temaIdx = lowerParts.findIndex((p) => p.includes('tema'));
+        tipoIdx = lowerParts.findIndex((p) => p.includes('tipo'));
+        legDubIdx = lowerParts.findIndex((p) => p.includes('leg') || p.includes('dub'));
         continue;
       }
 
-      const semanaStr = parts[0] || '';
-      const tema = parts[1] || 'Tema Livre';
-      const filme = parts[2] || '';
-      const pessoa = parts[3] || '';
+      // 3. Processa linha de dados da sessão
+      const movieName = parts[filmeIdx]?.trim() || '';
+      const pessoaName = pessoaIdx >= 0 ? parts[pessoaIdx]?.trim() : '';
+      const semanaStr = semanaIdx >= 0 ? parts[semanaIdx]?.trim() : '';
+      const temaStr = temaIdx >= 0 && parts[temaIdx]?.trim() ? parts[temaIdx].trim() : 'Tema Livre';
 
-      if (filme && pessoa && pessoa !== 'Pessoa') {
-        const tmdbData = await getMovieByTitle(filme);
-        await sleep(100);
+      if (!movieName || movieName.toLowerCase() === 'descanso' || movieName.toLowerCase() === 'nome do filme' || movieName.toLowerCase() === 'filme') {
+        continue;
+      }
 
-        const movie = await upsertMovie(tmdbData, filme);
+      if (pessoaName && pessoaName.toLowerCase() !== 'pessoa') {
+        const tmdbData = await getMovieByTitle(movieName);
+        const movie = await upsertMovie(tmdbData, movieName);
+
         if (movie) {
-          const member = await upsertMember(pessoa);
-
+          const member = await upsertMember(pessoaName);
           const dayMatch = semanaStr.match(/\d+/);
           const day = dayMatch ? parseInt(dayMatch[0], 10) : 1;
-          const exhibitionDate = new Date(2024, currentMonth, day, 12, 0, 0);
+          const exhibitionDate = new Date(tabela.year, currentMonth, day, 12, 0, 0);
+
+          const extraNotes: string[] = [];
+          if (tipoIdx >= 0 && parts[tipoIdx]?.trim()) {
+            extraNotes.push(`Tipo: ${parts[tipoIdx].trim()}`);
+          }
+          if (legDubIdx >= 0 && parts[legDubIdx]?.trim()) {
+            extraNotes.push(`Formato: ${parts[legDubIdx].trim()}`);
+          }
 
           await Session.findOneAndUpdate(
             { movieId: movie._id, memberId: member._id, exhibitionDate },
             {
               movieId: movie._id,
               memberId: member._id,
-              drawnCategory: tema,
+              drawnCategory: temaStr,
               exhibitionDate,
               tier: 'Unranked',
+              notes: extraNotes.join(' | '),
             },
             { upsert: true }
           );
 
-          countTab2++;
-          console.log(`✅ [Tab 2 - #${countTab2}] Salvo: "${movie.title}" indicado por ${member.name} (${semanaStr})`);
+          countYear++;
+          console.log(`✅ [${tabela.year} - #${countYear}] ${movie.title} por ${member.name} -> ${exhibitionDate.toLocaleDateString('pt-BR')}`);
         }
+        await sleep(250); // Anti-rate limit
       }
     }
-    console.log(`🏁 Tabela 2 concluída: ${countTab2} sessões sincronizadas com sucesso!`);
-  } else {
-    console.warn('⚠️ Arquivo tabela2.csv não encontrado.');
+    console.log(`🏁 ${tabela.file} concluída: ${countYear} sessões sincronizadas com sucesso!\n`);
+    await sleep(1500);
   }
 
-  console.log('\n🎉 Toda a base legada e atual foi importada e sincronizada com sucesso no MongoDB!');
+  console.log('🎉 Toda a base legada e as tabelas anuais foram importadas com sucesso no MongoDB Atlas!');
   await mongoose.disconnect();
   process.exit(0);
 }
