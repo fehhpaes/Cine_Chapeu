@@ -3,16 +3,15 @@ import fs from 'fs';
 import axios from 'axios';
 import dotenv from 'dotenv';
 import path from 'path';
-import { fileURLToPath } from 'url';
 import { Session } from './models/Session.js';
 import { Movie } from './models/Movie.js';
 import { Member } from './models/Member.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// Compatibilidade de diretório para CJS / TSX
+const currentDir = typeof __dirname !== 'undefined' ? __dirname : path.resolve(process.cwd(), 'src');
 
 // Carrega variáveis de ambiente
-dotenv.config({ path: path.resolve(__dirname, '../.env') });
+dotenv.config({ path: path.resolve(currentDir, '../.env') });
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
 const TMDB_API_KEY = process.env.TMDB_API_KEY || '909fb675e8861720c7844b3062672f83';

@@ -178,6 +178,112 @@ export class SessionService {
   }
 
   /**
+   * Atualiza uma sessão existente (incluindo substituição de filme via TMDB)
+   */
+  async updateSession(
+    id: string,
+    updateData: {
+      memberId?: string;
+      drawnCategory?: string;
+      exhibitionDate?: Date | string;
+      notes?: string;
+      tier?: string;
+      tmdbData?: any;
+      movie?: any;
+      tmdbId?: number;
+    }
+  ): Promise<PopulatedSession | null> {
+    const fieldsToUpdate: any = {};
+
+    // 1. Processa atualização do Filme via TMDB caso fornecido
+    const targetTmdbId = updateData.tmdbData?.id || updateData.tmdbId || updateData.movie?.tmdbId;
+
+    if (targetTmdbId) {
+      const rawMovie = updateData.tmdbData || updateData.movie;
+      const posterPath = rawMovie?.poster_path || rawMovie?.posterUrl;
+      const posterUrl = posterPath
+        ? (posterPath.startsWith('http') ? posterPath : `https://image.tmdb.org/t/p/w500${posterPath}`)
+        : '';
+
+      const releaseYear = rawMovie?.release_date
+        ? parseInt(rawMovie.release_date.slice(0, 4), 10)
+        : (rawMovie?.releaseYear || new Date().getFullYear());
+
+      let movieDataToSave: any = {
+        tmdbId: targetTmdbId,
+        title: rawMovie?.title || 'Filme sem Título',
+        originalTitle: rawMovie?.original_title || rawMovie?.originalTitle || rawMovie?.title || '',
+        director: rawMovie?.director || 'Desconhecido',
+        posterUrl,
+        releaseYear: isNaN(releaseYear) ? new Date().getFullYear() : releaseYear,
+        genres: rawMovie?.genres || [],
+        runtime: rawMovie?.runtime || 0,
+      };
+
+      try {
+        const fullDetails = await tmdbService.getMovieDetails(targetTmdbId);
+        movieDataToSave = {
+          ...movieDataToSave,
+          title: fullDetails.title || movieDataToSave.title,
+          originalTitle: fullDetails.originalTitle || movieDataToSave.originalTitle,
+          director: fullDetails.director || movieDataToSave.director,
+          genres: fullDetails.genres.length > 0 ? fullDetails.genres : movieDataToSave.genres,
+          runtime: fullDetails.runtime || movieDataToSave.runtime,
+          posterUrl: fullDetails.posterUrl || movieDataToSave.posterUrl,
+          releaseYear: fullDetails.releaseYear || movieDataToSave.releaseYear,
+        };
+      } catch (err: any) {
+        console.warn('[SessionService.updateSession] Prosseguindo com dados TMDB fornecidos:', err.message);
+      }
+
+      const dbMovie = await Movie.findOneAndUpdate(
+        { tmdbId: targetTmdbId },
+        { $set: movieDataToSave },
+        { upsert: true, new: true, runValidators: true }
+      );
+
+      if (dbMovie) {
+        fieldsToUpdate.movieId = dbMovie._id;
+      }
+    }
+
+    if (updateData.memberId) {
+      fieldsToUpdate.memberId = updateData.memberId;
+    }
+    if (updateData.drawnCategory !== undefined) {
+      fieldsToUpdate.drawnCategory = updateData.drawnCategory.trim();
+    }
+    if (updateData.exhibitionDate) {
+      fieldsToUpdate.exhibitionDate = new Date(updateData.exhibitionDate);
+    }
+    if (updateData.notes !== undefined) {
+      fieldsToUpdate.notes = updateData.notes.trim();
+    }
+    if (updateData.tier !== undefined) {
+      fieldsToUpdate.tier = updateData.tier.trim();
+    }
+
+    const updated = await Session.findByIdAndUpdate(
+      id,
+      { $set: fieldsToUpdate },
+      { new: true, runValidators: true }
+    )
+      .populate('movieId')
+      .populate('memberId')
+      .lean();
+
+    return updated as unknown as PopulatedSession | null;
+  }
+
+  /**
+   * Remove uma sessão por ID
+   */
+  async deleteSession(id: string): Promise<boolean> {
+    const result = await Session.findByIdAndDelete(id);
+    return !!result;
+  }
+
+  /**
    * Atualiza o tier de classificação de uma sessão (aceita qualquer categoria customizada)
    */
   async updateTier(id: string, tier: string): Promise<PopulatedSession | null> {

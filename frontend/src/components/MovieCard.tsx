@@ -1,13 +1,22 @@
 import React from 'react';
-import { Sparkles, Film, Calendar } from 'lucide-react';
+import { Sparkles, Film, Calendar, Pencil, Trash2 } from 'lucide-react';
 import { Session } from '../types/index.ts';
+import { useAuth } from '../context/AuthContext.tsx';
 
 interface MovieCardProps {
   session: Session;
   isWinner?: boolean;
+  onEdit?: (session: Session) => void;
+  onDelete?: (session: Session) => void;
 }
 
-export const MovieCard: React.FC<MovieCardProps> = ({ session, isWinner = false }) => {
+export const MovieCard: React.FC<MovieCardProps> = ({
+  session,
+  isWinner = false,
+  onEdit,
+  onDelete,
+}) => {
+  const { isAdmin } = useAuth();
   const { movieId, memberId, drawnCategory, exhibitionDate } = session;
 
   const formattedDate = exhibitionDate
@@ -16,6 +25,20 @@ export const MovieCard: React.FC<MovieCardProps> = ({ session, isWinner = false 
         year: 'numeric',
       })
     : '';
+
+  const handleEditClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onEdit) {
+      onEdit(session);
+    }
+  };
+
+  const handleDeleteClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onDelete) {
+      onDelete(session);
+    }
+  };
 
   return (
     <div
@@ -43,16 +66,39 @@ export const MovieCard: React.FC<MovieCardProps> = ({ session, isWinner = false 
       {/* 2. Gradient Overlay Cinematográfico */}
       <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/60 to-transparent opacity-90 group-hover:opacity-95 transition-opacity" />
 
-      {/* 3. Badge Superior de Ano */}
+      {/* 3. Botões de Ação de Admin (Editar & Excluir) */}
+      {isAdmin && (
+        <div className="absolute top-2.5 left-2.5 z-20 flex items-center gap-1.5 opacity-90 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200">
+          {onEdit && (
+            <button
+              onClick={handleEditClick}
+              title="Editar sessão"
+              className="p-1.5 rounded-md bg-zinc-950/80 hover:bg-amber-500 hover:text-zinc-950 text-zinc-300 backdrop-blur-md border border-white/10 shadow-md transition-colors"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+            </button>
+          )}
+          {onDelete && (
+            <button
+              onClick={handleDeleteClick}
+              title="Excluir sessão"
+              className="p-1.5 rounded-md bg-zinc-950/80 hover:bg-red-500 hover:text-white text-zinc-300 backdrop-blur-md border border-white/10 shadow-md transition-colors"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* 4. Badge Superior de Ano */}
       <div className="absolute top-2.5 right-2.5 z-10">
         <span className="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-zinc-950/80 backdrop-blur-md text-zinc-300 border border-white/10 font-display">
           {movieId?.releaseYear || '—'}
         </span>
       </div>
 
-      {/* 4. Informações Sobrepostas na Base do Card */}
+      {/* 5. Informações Sobrepostas na Base do Card */}
       <div className="absolute inset-x-0 bottom-0 p-4 z-10 flex flex-col justify-end">
-        
         {/* Categoria Sorteada */}
         {drawnCategory && (
           <div className="transform translate-y-2 opacity-85 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300 ease-out mb-1.5">
@@ -75,7 +121,7 @@ export const MovieCard: React.FC<MovieCardProps> = ({ session, isWinner = false 
           </p>
         )}
 
-        {/* Membro Responsável (Apenas Texto Limpo) + Data da Sessão */}
+        {/* Membro Responsável + Data da Sessão */}
         <div className="pt-2 mt-2 border-t border-white/10 flex items-center justify-between text-[11px] text-zinc-400">
           <span className="truncate">
             Trazido por <strong className="text-zinc-200 font-medium">{memberId?.name || 'Amigo'}</strong>
@@ -88,9 +134,7 @@ export const MovieCard: React.FC<MovieCardProps> = ({ session, isWinner = false 
             </span>
           )}
         </div>
-
       </div>
-
     </div>
   );
 };

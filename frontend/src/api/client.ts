@@ -88,6 +88,22 @@ export interface CreateSessionPayload {
   notes?: string;
 }
 
+export interface UpdateSessionPayload {
+  memberId?: string;
+  drawnCategory?: string;
+  exhibitionDate?: string;
+  notes?: string;
+  tier?: string;
+  tmdbData?: TMDBMovieSearchItem;
+  movie?: {
+    tmdbId: number;
+    title: string;
+    originalTitle?: string;
+    posterUrl?: string;
+    releaseYear: number;
+  };
+}
+
 export const sessionsApi = {
   getNext: async (): Promise<Session | null> => {
     const res = await api.get<{ success: boolean; data: Session | null }>('/sessions/next');
@@ -116,6 +132,13 @@ export const sessionsApi = {
   create: async (payload: CreateSessionPayload): Promise<Session> => {
     const res = await api.post<{ success: boolean; message: string; data: Session }>('/sessions', payload);
     return res.data.data;
+  },
+  update: async (id: string, payload: UpdateSessionPayload): Promise<Session> => {
+    const res = await api.put<{ success: boolean; message: string; data: Session }>(`/sessions/${id}`, payload);
+    return res.data.data;
+  },
+  delete: async (id: string): Promise<void> => {
+    await api.delete<{ success: boolean; message: string }>(`/sessions/${id}`);
   },
   updateTier: async (id: string, tier: string): Promise<Session> => {
     const res = await api.patch<{ success: boolean; message: string; data: Session }>(`/sessions/${id}/tier`, {

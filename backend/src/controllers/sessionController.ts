@@ -147,6 +147,58 @@ export class SessionController {
       res.status(500).json({ success: false, message: error.message || 'Erro ao atualizar tier.' });
     }
   }
+
+  async update(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const { memberId, drawnCategory, exhibitionDate, notes, tier, tmdbData, movie, tmdbId } = req.body;
+
+      const updated = await sessionService.updateSession(id, {
+        memberId,
+        drawnCategory,
+        exhibitionDate,
+        notes,
+        tier,
+        tmdbData,
+        movie,
+        tmdbId,
+      });
+
+      if (!updated) {
+        res.status(404).json({ success: false, message: 'Sessão não encontrada para atualização.' });
+        return;
+      }
+
+      res.status(200).json({
+        success: true,
+        message: 'Sessão atualizada com sucesso!',
+        data: updated,
+      });
+    } catch (error: any) {
+      console.error('[SessionController.update] Erro:', error);
+      res.status(500).json({ success: false, message: error.message || 'Erro ao atualizar sessão.' });
+    }
+  }
+
+  async delete(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const deleted = await sessionService.deleteSession(id);
+
+      if (!deleted) {
+        res.status(404).json({ success: false, message: 'Sessão não encontrada para exclusão.' });
+        return;
+      }
+
+      res.status(200).json({
+        success: true,
+        message: 'Sessão excluída com sucesso!',
+      });
+    } catch (error: any) {
+      console.error('[SessionController.delete] Erro:', error);
+      res.status(500).json({ success: false, message: error.message || 'Erro ao excluir sessão.' });
+    }
+  }
 }
 
 export const sessionController = new SessionController();

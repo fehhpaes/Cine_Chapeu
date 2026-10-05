@@ -22,6 +22,12 @@ router.get('/:id', (req, res) => sessionController.getById(req, res));
 // POST /api/sessions - Cria sessão com cache automático do TMDB (Protegido por PIN)
 router.post('/', authMiddleware, (req, res) => sessionController.create(req, res));
 
+// PUT /api/sessions/:id - Atualiza uma sessão existente (Protegido por PIN)
+router.put('/:id', authMiddleware, (req, res) => sessionController.update(req, res));
+
+// DELETE /api/sessions/:id - Remove uma sessão existente (Protegido por PIN)
+router.delete('/:id', authMiddleware, (req, res) => sessionController.delete(req, res));
+
 // PATCH /api/sessions/:id/tier - Atualiza o tier de classificação de uma sessão (Protegido por PIN)
 router.patch('/:id/tier', authMiddleware, (req, res) => sessionController.updateTier(req, res));
 

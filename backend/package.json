@@ -8,7 +8,9 @@
     "start": "node dist/server.js",
     "dev": "tsx watch src/server.ts",
     "seed": "tsx src/seed/seed.ts",
-    "import:legado": "tsx src/importar_legado.ts"
+    "import:legado": "tsx src/importar_legado.ts",
+    "limpar:banco": "tsx src/limpar_banco.ts",
+    "db:clean": "tsx src/limpar_banco.ts"
   },
   "dependencies": {
     "axios": "^1.7.9",
