@@ -31,6 +31,7 @@ export const HomePage: React.FC<HomePageProps> = ({
   const [selectedMember, setSelectedMember] = useState('');
   const [selectedYear, setSelectedYear] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
+  const [sortOrder, setSortOrder] = useState('date_desc');
 
   // Estados para edição de sessão
   const [editingSession, setEditingSession] = useState<Session | null>(null);
@@ -85,6 +86,7 @@ export const HomePage: React.FC<HomePageProps> = ({
     setSelectedMember('');
     setSelectedYear('');
     setSelectedCategory('');
+    setSortOrder('date_desc');
   };
 
   const handleEditSession = (session: Session) => {
@@ -114,6 +116,29 @@ export const HomePage: React.FC<HomePageProps> = ({
     await loadSessions();
     await loadInitialData();
   };
+
+  // Aplicação da ordenação escolhida no catálogo
+  const sortedSessions = [...sessions].sort((a, b) => {
+    if (sortOrder === 'date_asc') {
+      const dateA = a.exhibitionDate ? new Date(a.exhibitionDate).getTime() : 0;
+      const dateB = b.exhibitionDate ? new Date(b.exhibitionDate).getTime() : 0;
+      return dateA - dateB;
+    }
+    if (sortOrder === 'alpha_asc') {
+      const titleA = a.movieId?.title || '';
+      const titleB = b.movieId?.title || '';
+      return titleA.localeCompare(titleB, 'pt-BR', { sensitivity: 'base' });
+    }
+    if (sortOrder === 'alpha_desc') {
+      const titleA = a.movieId?.title || '';
+      const titleB = b.movieId?.title || '';
+      return titleB.localeCompare(titleA, 'pt-BR', { sensitivity: 'base' });
+    }
+    // date_desc (Padrão: mais recente primeiro)
+    const dateA = a.exhibitionDate ? new Date(a.exhibitionDate).getTime() : 0;
+    const dateB = b.exhibitionDate ? new Date(b.exhibitionDate).getTime() : 0;
+    return dateB - dateA;
+  });
 
   return (
     <div className="relative min-h-[calc(100vh-4rem)] bg-[url('/cinema-bg.jpg')] bg-cover bg-center bg-no-repeat bg-fixed">
@@ -164,7 +189,7 @@ export const HomePage: React.FC<HomePageProps> = ({
           onOpenCreateSession={onOpenCreateSession}
         />
 
-        {/* 2. Componente de Filtros Dinâmicos */}
+        {/* 2. Componente de Filtros Dinâmicos e Ordenação */}
         <SessionFilter
           movieTitle={movieTitle}
           onMovieTitleChange={setMovieTitle}
@@ -174,6 +199,8 @@ export const HomePage: React.FC<HomePageProps> = ({
           onYearChange={setSelectedYear}
           selectedCategory={selectedCategory}
           onCategoryChange={setSelectedCategory}
+          sortOrder={sortOrder}
+          onSortOrderChange={setSortOrder}
           members={members}
           categories={filterOptions.categories}
           years={filterOptions.years}
@@ -188,7 +215,7 @@ export const HomePage: React.FC<HomePageProps> = ({
               Todas as Sessões
             </h2>
             <span className="text-xs text-zinc-500 font-medium ml-1">
-              ({sessions.length} {sessions.length === 1 ? 'filme' : 'filmes'})
+              ({sortedSessions.length} {sortedSessions.length === 1 ? 'filme' : 'filmes'})
             </span>
           </div>
 
@@ -214,7 +241,7 @@ export const HomePage: React.FC<HomePageProps> = ({
             <Loader2 className="w-6 h-6 animate-spin" />
             <span className="text-xs text-zinc-400">Carregando catálogo...</span>
           </div>
-        ) : sessions.length === 0 ? (
+        ) : sortedSessions.length === 0 ? (
           <div className="bg-zinc-900/60 rounded-xl p-10 text-center border border-zinc-800 max-w-md mx-auto my-8">
             <Film className="w-10 h-10 text-zinc-600 mx-auto mb-3 stroke-[1.5]" />
             <h3 className="font-display font-bold text-base text-zinc-200 mb-1">Nenhuma sessão encontrada</h3>
@@ -233,7 +260,7 @@ export const HomePage: React.FC<HomePageProps> = ({
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-            {sessions.map((session) => (
+            {sortedSessions.map((session) => (
               <MovieCard
                 key={session._id}
                 session={session}
