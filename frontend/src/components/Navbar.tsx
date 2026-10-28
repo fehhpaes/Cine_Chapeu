@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Film, Dices, Trophy, Layers, Plus, Vote as VoteIcon, Presentation, Lock, Unlock } from 'lucide-react';
+import { Film, Dices, Trophy, Layers, Plus, Vote as VoteIcon, Presentation, Lock, Unlock, MonitorPlay } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.tsx';
 import { CineChapeuLogo } from './CineChapeuLogo.tsx';
 
@@ -108,6 +108,19 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenCreateSession }) => {
               <Presentation className="w-3.5 h-3.5" />
               <span>Apresentador</span>
             </Link>
+
+            {/* Link Watch Party */}
+            <Link
+              to="/watch"
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold tracking-wide transition-all ${
+                isActive('/watch') || isActive('/watchparty')
+                  ? 'bg-red-500/15 text-red-400 border border-red-500/40 shadow-sm'
+                  : 'text-zinc-400 hover:text-red-400 hover:bg-zinc-900/60'
+              }`}
+            >
+              <MonitorPlay className="w-3.5 h-3.5 text-red-500" />
+              <span>Watch Party</span>
+            </Link>
           </nav>
 
           {/* Área Direita: Botão Admin PIN + Ação Rápida */}
@@ -184,6 +197,13 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenCreateSession }) => {
         >
           <VoteIcon className="w-4 h-4" />
           <span>Votar</span>
+        </Link>
+        <Link
+          to="/watch"
+          className={`flex flex-col items-center gap-1 ${isActive('/watch') || isActive('/watchparty') ? 'text-red-400 font-semibold' : 'text-zinc-400'}`}
+        >
+          <MonitorPlay className="w-4 h-4" />
+          <span>Live</span>
         </Link>
         {isAdmin ? (
           <button

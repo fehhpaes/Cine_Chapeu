@@ -7,6 +7,7 @@ import { AwardsPage } from './pages/AwardsPage.tsx';
 import { TierListPage } from './pages/TierListPage.tsx';
 import { VotingPage } from './pages/VotingPage.tsx';
 import { PresenterDashboard } from './pages/PresenterDashboard.tsx';
+import { WatchParty } from './pages/WatchParty.tsx';
 import { RouletteModal } from './components/RouletteModal.tsx';
 import { CreateSessionModal } from './components/CreateSessionModal.tsx';
 import { AdminPinModal } from './components/AdminPinModal.tsx';
@@ -67,6 +68,8 @@ const AppContent: React.FC = () => {
           <Route path="/oscar" element={<AwardsPage />} />
           <Route path="/votar" element={<VotingPage />} />
           <Route path="/dashboard" element={<PresenterDashboard />} />
+          <Route path="/watch" element={<WatchParty />} />
+          <Route path="/watchparty" element={<WatchParty />} />
         </Routes>
       </main>
 
