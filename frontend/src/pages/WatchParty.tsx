@@ -9,8 +9,8 @@ export function WatchParty() {
   // ID fixo da sala de transmissão
   const STREAM_ID = 'cinechapeu2026';
 
-  // Link de visualização para os membros (embutido no site)
-  const viewerUrl = `https://vdo.ninja/?view=${STREAM_ID}&autoplay&cleanoutput`;
+  // Link de visualização para os membros (embutido no site com controles de vídeo e cabeçalho oculto)
+  const viewerUrl = `https://vdo.ninja/?view=${STREAM_ID}&autoplay&videocontrols&hideheader`;
 
   // Link de transmissão para o Admin (abre em nova aba já configurado para tela + bitrate moderado)
   const broadcasterUrl = `https://vdo.ninja/?push=${STREAM_ID}&screenshare&quality=1&vb=2500`;
