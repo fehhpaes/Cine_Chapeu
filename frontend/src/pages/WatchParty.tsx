@@ -11,12 +11,11 @@ import {
   Play,
   RotateCcw,
   Radio,
-  AlertCircle,
 } from 'lucide-react';
 
 const ROOM_ID = 'cine-chapeu-admin-room-2026';
 
-// Servidores STUN públicos + TURN gratuito (Metered OpenRelay) para garantir transposição de NAT/Firewall
+// Servidores STUN públicos + TURN gratuito para transposição de NAT
 const PEER_CONFIG = {
   config: {
     iceServers: [
@@ -55,25 +54,23 @@ export function WatchParty() {
   const currentStreamRef = useRef<MediaStream | null>(null);
   const connectedMembersRef = useRef<Map<string, DataConnection>>(new Map());
   const activeCallsRef = useRef<Map<string, MediaConnection>>(new Map());
-  const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const [isStreaming, setIsStreaming] = useState(false);
   const [viewerCount, setViewerCount] = useState(0);
   const [connectionStatus, setConnectionStatus] = useState('Iniciando...');
   const [isConnecting, setIsConnecting] = useState(false);
-  const [needsAudioUnlock, setNeedsAudioUnlock] = useState(false);
+  const [hasRemoteStream, setHasRemoteStream] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
 
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(isAdmin);
-  const [hasJoined, setHasJoined] = useState(isAdmin);
 
   // Manipulador de chamadas para o Admin
   const handleAdminCall = useCallback((memberId: string) => {
     if (!peerRef.current || !currentStreamRef.current) return;
 
     try {
-      // Fecha chamada anterior para o mesmo membro se existir
       if (activeCallsRef.current.has(memberId)) {
         activeCallsRef.current.get(memberId)?.close();
       }
@@ -111,7 +108,7 @@ export function WatchParty() {
 
       conn.on('open', () => {
         setIsConnecting(false);
-        setConnectionStatus('Conectado à sala! Aguardando vídeo...');
+        setConnectionStatus('Conectado! Aguardando o filme...');
         conn.send({ type: 'PULL_STREAM' });
       });
 
@@ -129,6 +126,32 @@ export function WatchParty() {
       setIsConnecting(false);
     }
   }, [isAdmin]);
+
+  // Forçar reprodução do vídeo
+  const forcePlayVideo = useCallback((unmute = false) => {
+    if (!videoRef.current) return;
+
+    if (unmute) {
+      videoRef.current.muted = false;
+      setIsMuted(false);
+    }
+
+    const playPromise = videoRef.current.play();
+    if (playPromise !== undefined) {
+      playPromise
+        .then(() => {
+          setIsPlaying(true);
+        })
+        .catch((err) => {
+          console.warn('[Play] Falha ao reproduzir desmutado, tentando mudo:', err);
+          if (videoRef.current) {
+            videoRef.current.muted = true;
+            setIsMuted(true);
+            videoRef.current.play().then(() => setIsPlaying(true)).catch(console.error);
+          }
+        });
+    }
+  }, []);
 
   // Inicialização do PeerJS
   useEffect(() => {
@@ -153,7 +176,6 @@ export function WatchParty() {
         });
 
         if (isAdmin) {
-          // Admin ouve novos membros chegando na sala
           peer.on('connection', (conn) => {
             const memberId = conn.peer;
             console.log(`[PeerJS Admin] Novo membro conectado: ${memberId}`);
@@ -170,41 +192,30 @@ export function WatchParty() {
               connectedMembersRef.current.delete(memberId);
             });
 
-            // Se já estiver transmitindo, liga para o novo membro imediatamente
             if (currentStreamRef.current) {
               handleAdminCall(memberId);
             }
           });
         } else {
-          // Membro ouve chamada de vídeo recebida do Admin
           peer.on('call', (call: MediaConnection) => {
             console.log('[PeerJS Membro] Chamada de vídeo recebida do Admin!');
-            call.answer(); // Receive-only sem enviar stream
+            call.answer();
 
             call.on('stream', (remoteStream) => {
               console.log('[PeerJS Membro] Stream de vídeo recebida com sucesso!');
+              setHasRemoteStream(true);
+              setConnectionStatus('Ao vivo');
+
               if (videoRef.current) {
                 videoRef.current.srcObject = remoteStream;
-                setConnectionStatus('Ao vivo');
-
-                // Tenta reproduzir; se o navegador bloquear áudio, toca mutado para não dar tela preta
-                const playPromise = videoRef.current.play();
-                if (playPromise !== undefined) {
-                  playPromise.catch((err) => {
-                    console.warn('[Autoplay] Reprodução com áudio bloqueada pelo navegador:', err);
-                    if (videoRef.current) {
-                      videoRef.current.muted = true;
-                      setIsMuted(true);
-                      setNeedsAudioUnlock(true);
-                      videoRef.current.play().catch(console.error);
-                    }
-                  });
-                }
+                forcePlayVideo(false);
               }
             });
 
             call.on('close', () => {
               setConnectionStatus('O Admin encerrou a transmissão.');
+              setHasRemoteStream(false);
+              setIsPlaying(false);
             });
 
             call.on('error', (err) => {
@@ -218,7 +229,6 @@ export function WatchParty() {
           console.error('[PeerJS Error]:', err);
           if (err.type === 'unavailable-id') {
             setConnectionStatus('ID da sala ocupado no servidor. Aguardando liberação...');
-            // Tenta reconectar após alguns segundos se o ID estava preso
             setTimeout(() => {
               if (!isCancelled && isAdmin) {
                 peer.destroy();
@@ -228,7 +238,7 @@ export function WatchParty() {
           } else if (err.type === 'peer-unavailable') {
             setConnectionStatus('Admin ainda não iniciou a sala.');
           } else {
-            setConnectionStatus(`Aviso de conexão: ${err.type || 'instabilidade'}`);
+            setConnectionStatus(`Aviso: ${err.type || 'instabilidade'}`);
           }
         });
       } catch (e) {
@@ -240,45 +250,26 @@ export function WatchParty() {
 
     return () => {
       isCancelled = true;
-      if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
       if (peerRef.current) {
         peerRef.current.disconnect();
         peerRef.current.destroy();
         peerRef.current = null;
       }
     };
-  }, [isAdmin, connectToAdmin, handleAdminCall]);
+  }, [isAdmin, connectToAdmin, handleAdminCall, forcePlayVideo]);
 
-  // Loop de reconexão automática para membros caso o Admin ainda não esteja online
+  // Reconexão periódica se o membro ainda não recebeu a stream
   useEffect(() => {
-    if (isAdmin || isStreaming || connectionStatus === 'Ao vivo') return;
+    if (isAdmin || isStreaming || hasRemoteStream) return;
 
     const interval = setInterval(() => {
-      if (connectionStatus !== 'Ao vivo' && !isConnecting) {
+      if (!hasRemoteStream && !isConnecting) {
         connectToAdmin();
       }
     }, 6000);
 
     return () => clearInterval(interval);
-  }, [isAdmin, isStreaming, connectionStatus, isConnecting, connectToAdmin]);
-
-  // Ação manual do membro para sintonizar e liberar áudio
-  const handleManualJoin = () => {
-    setHasJoined(true);
-    setNeedsAudioUnlock(false);
-
-    if (videoRef.current) {
-      videoRef.current.muted = false;
-      setIsMuted(false);
-      videoRef.current.play().catch((err) => {
-        console.warn('Erro ao forçar play:', err);
-      });
-    }
-
-    if (connectionStatus !== 'Ao vivo') {
-      connectToAdmin();
-    }
-  };
+  }, [isAdmin, isStreaming, hasRemoteStream, isConnecting, connectToAdmin]);
 
   // Iniciar partilha de ecrã (Admin)
   const startScreenShare = async () => {
@@ -298,7 +289,6 @@ export function WatchParty() {
       setIsStreaming(true);
       setConnectionStatus('Transmitindo ao vivo');
 
-      // Liga imediatamente para todos os membros que já estão na sala aguardando
       connectedMembersRef.current.forEach((_conn, memberId) => {
         handleAdminCall(memberId);
       });
@@ -308,7 +298,7 @@ export function WatchParty() {
       };
     } catch (err) {
       console.error('Erro ao capturar tela:', err);
-      setConnectionStatus('Permissão de captura negada.');
+      setConnectionStatus('Permissão negada.');
     }
   };
 
@@ -408,107 +398,114 @@ export function WatchParty() {
         </div>
       </div>
 
-      {/* Alerta de desbloqueio de áudio (se autoplay iniciou mutado) */}
-      {needsAudioUnlock && (
-        <div className="w-full max-w-6xl mb-3 p-3 bg-amber-500/15 border border-amber-500/30 rounded-xl flex items-center justify-between gap-3 text-amber-300 text-xs sm:text-sm animate-pulse">
-          <div className="flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 shrink-0" />
-            <span>O navegador iniciou o vídeo mudo por segurança. Clique ao lado para ativar o som do filme!</span>
-          </div>
-          <button
-            onClick={handleManualJoin}
-            className="px-3 py-1.5 bg-amber-500 text-black font-bold rounded-lg hover:bg-amber-400 transition-colors shrink-0 cursor-pointer"
-          >
-            Ativar Áudio
-          </button>
-        </div>
-      )}
-
       {/* Moldura do Player */}
       <div
         ref={containerRef}
         onDoubleClick={toggleFullScreen}
-        className="w-full max-w-6xl aspect-video bg-zinc-950 rounded-2xl overflow-hidden shadow-2xl relative border border-zinc-800/80 group"
+        onClick={() => !isAdmin && !isPlaying && forcePlayVideo(true)}
+        className="w-full max-w-6xl aspect-video bg-zinc-950 rounded-2xl overflow-hidden shadow-2xl relative border border-zinc-800/80 group cursor-pointer"
       >
         <video
           ref={videoRef}
           className="w-full h-full object-contain bg-black"
           autoPlay
           playsInline
-          controls={false}
+          muted={isAdmin ? true : isMuted}
+          onPlay={() => setIsPlaying(true)}
+          onPause={() => setIsPlaying(false)}
         />
 
         {/* Barra de Controles Flutuante */}
-        {hasJoined && (
-          <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/95 via-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex justify-between items-center z-10">
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => !isAdmin && setIsMuted(!isMuted)}
-                disabled={isAdmin}
-                className={`transition-colors p-1.5 rounded-lg cursor-pointer ${
-                  isAdmin
-                    ? 'text-zinc-600 cursor-not-allowed'
-                    : 'text-zinc-200 hover:text-amber-400 hover:bg-zinc-800/60'
-                }`}
-                title={isAdmin ? 'Áudio do admin mutado localmente para evitar eco' : (isMuted ? 'Desmutar' : 'Mutar')}
-              >
-                {isMuted || volume === 0 ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
-              </button>
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.05"
-                value={isMuted ? 0 : volume}
-                onChange={(e) => {
-                  setVolume(parseFloat(e.target.value));
-                  if (isMuted) setIsMuted(false);
-                }}
-                disabled={isAdmin}
-                className={`w-24 sm:w-32 h-1.5 rounded-lg cursor-pointer ${
-                  isAdmin ? 'opacity-40' : 'accent-amber-500'
-                }`}
-              />
-            </div>
-
+        <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/95 via-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex justify-between items-center z-10 pointer-events-auto">
+          <div className="flex items-center gap-3">
             <button
-              onClick={toggleFullScreen}
-              className="text-zinc-200 hover:text-amber-400 hover:bg-zinc-800/60 p-2 rounded-lg transition-colors cursor-pointer"
-              title="Tela Cheia (ou duplo clique)"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (!isAdmin) {
+                  const nextMuted = !isMuted;
+                  setIsMuted(nextMuted);
+                  if (videoRef.current) videoRef.current.muted = nextMuted;
+                  if (!isPlaying) forcePlayVideo(!nextMuted);
+                }
+              }}
+              disabled={isAdmin}
+              className={`transition-colors p-1.5 rounded-lg cursor-pointer ${
+                isAdmin
+                  ? 'text-zinc-600 cursor-not-allowed'
+                  : 'text-zinc-200 hover:text-amber-400 hover:bg-zinc-800/60'
+              }`}
+              title={isAdmin ? 'Áudio do admin mutado localmente para evitar eco' : (isMuted ? 'Desmutar' : 'Mutar')}
             >
-              {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
+              {isMuted || volume === 0 ? <VolumeX className="w-5 h-5 text-red-400" /> : <Volume2 className="w-5 h-5 text-amber-400" />}
             </button>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.05"
+              value={isMuted ? 0 : volume}
+              onChange={(e) => {
+                e.stopPropagation();
+                const v = parseFloat(e.target.value);
+                setVolume(v);
+                if (isMuted) {
+                  setIsMuted(false);
+                  if (videoRef.current) videoRef.current.muted = false;
+                }
+              }}
+              disabled={isAdmin}
+              className={`w-24 sm:w-32 h-1.5 rounded-lg cursor-pointer ${
+                isAdmin ? 'opacity-40' : 'accent-amber-500'
+              }`}
+            />
           </div>
-        )}
+
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleFullScreen();
+            }}
+            className="text-zinc-200 hover:text-amber-400 hover:bg-zinc-800/60 p-2 rounded-lg transition-colors cursor-pointer"
+            title="Tela Cheia (ou duplo clique)"
+          >
+            {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
+          </button>
+        </div>
 
         {/* Botão de Iniciar para o Admin */}
         {!isStreaming && isAdmin && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/75 z-20 backdrop-blur-sm p-4 text-center">
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 z-20 backdrop-blur-sm p-4 text-center">
             <button
-              onClick={startScreenShare}
+              onClick={(e) => {
+                e.stopPropagation();
+                startScreenShare();
+              }}
               className="flex items-center gap-3 px-8 py-4 bg-amber-500 text-black font-bold text-base sm:text-lg rounded-2xl hover:bg-amber-400 transition-transform hover:scale-105 cursor-pointer shadow-xl shadow-amber-500/20 mb-3"
             >
               <MonitorPlay className="w-6 h-6" />
               <span>Iniciar Partilha de Ecrã</span>
             </button>
             <p className="text-zinc-400 text-xs sm:text-sm max-w-md">
-              Dica: escolha a janela ou aba do filme e certifique-se de marcar a opção de compartilhar áudio do sistema.
+              💡 <strong>Dica de ouro:</strong> Escolha <strong>"Tela Inteira"</strong> e marque <strong>"Compartilhar áudio do sistema"</strong> para transmitir o VLC sem tela preta!
             </p>
           </div>
         )}
 
-        {/* Botão de Sintonizar para os Membros */}
-        {!isAdmin && !hasJoined && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/85 z-20 backdrop-blur-sm p-4 text-center">
+        {/* Botão Gigante de Interação para o Membro (Destrava Autoplay de Áudio e Vídeo) */}
+        {!isAdmin && (!isPlaying || isMuted) && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 z-20 backdrop-blur-xs p-4 text-center pointer-events-none">
             <button
-              onClick={handleManualJoin}
-              className="flex items-center gap-3 px-8 py-4 bg-amber-500 text-black font-bold text-base sm:text-lg rounded-full hover:bg-amber-400 transition-transform hover:scale-105 shadow-xl shadow-amber-500/20 mb-3 cursor-pointer"
+              onClick={(e) => {
+                e.stopPropagation();
+                forcePlayVideo(true);
+              }}
+              className="pointer-events-auto flex items-center gap-3 px-8 py-4 bg-amber-500 text-black font-bold text-base sm:text-lg rounded-full hover:bg-amber-400 transition-transform hover:scale-105 shadow-2xl shadow-amber-500/30 mb-3 cursor-pointer animate-bounce"
             >
               <Play className="w-6 h-6 fill-current" />
-              <span>Sintonizar Sessão</span>
+              <span>CLIQUE PARA ASSISTIR COM SOM</span>
             </button>
-            <p className="text-zinc-400 text-xs sm:text-sm max-w-sm">
-              Clique para conectar ao Admin e liberar áudio e vídeo em tempo real.
+            <p className="text-zinc-300 text-xs sm:text-sm max-w-sm drop-shadow-md">
+              O navegador exige um clique para liberar a reprodução de áudio e vídeo.
             </p>
           </div>
         )}
