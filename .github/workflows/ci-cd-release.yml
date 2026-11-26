@@ -16,6 +16,7 @@ jobs:
   build-and-release:
     name: Build, Version & Release
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - name: Checkout do código
@@ -33,6 +34,8 @@ jobs:
         run: npm install
 
       - name: Instalar dependências e validar build do Frontend
+        env:
+          NODE_OPTIONS: "--max-old-space-size=4096"
         run: |
           cd frontend
           npm install
@@ -70,7 +73,7 @@ jobs:
         run: |
           git fetch --tags || true
           LAST_TAG=$(git describe --tags $(git rev-list --tags --max-count=1 2>/dev/null) 2>/dev/null || echo "v0.0.0")
-          
+
           if [ "$LAST_TAG" = "v0.0.0" ]; then
             COMMITS=$(git log --pretty=format:"%s")
           else
@@ -98,7 +101,7 @@ jobs:
             NEW_VERSION=$(semver -i major "$CURRENT_VERSION")
           elif [[ $MINOR -eq 1 ]]; then
             NEW_VERSION=$(semver -i minor "$CURRENT_VERSION")
-          else 
+          else
             NEW_VERSION=$(semver -i patch "$CURRENT_VERSION")
           fi
 
@@ -133,3 +136,10 @@ jobs:
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
+
+      # ==========================================
+      # Deploy na Vercel (descomente após criar o secret VERCEL_DEPLOY_HOOK)
+      # ==========================================
+      # - name: Disparar Deploy na Vercel
+      #   if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+      #   run: curl -f -X POST "${{ secrets.VERCEL_DEPLOY_HOOK }}"
