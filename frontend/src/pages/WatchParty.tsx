@@ -54,6 +54,7 @@ export function WatchParty() {
   const currentStreamRef = useRef<MediaStream | null>(null);
   const connectedMembersRef = useRef<Map<string, DataConnection>>(new Map());
   const activeCallsRef = useRef<Map<string, MediaConnection>>(new Map());
+  const memberActiveCallRef = useRef<MediaConnection | null>(null);
 
   const [isStreaming, setIsStreaming] = useState(false);
   const [viewerCount, setViewerCount] = useState(0);
@@ -66,15 +67,54 @@ export function WatchParty() {
   const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(isAdmin);
 
-  // Manipulador de chamadas para o Admin
+  // Executa play de forma segura aguardando o carregamento da mídia
+  const safePlay = useCallback(() => {
+    const video = videoRef.current;
+    if (!video || !video.srcObject) return;
+
+    const tryPlay = () => {
+      video
+        .play()
+        .then(() => {
+          setIsPlaying(true);
+        })
+        .catch((err) => {
+          console.warn('[SafePlay] Play desmutado falhou, tocando mutado:', err);
+          video.muted = true;
+          setIsMuted(true);
+          video
+            .play()
+            .then(() => setIsPlaying(true))
+            .catch((e) => console.error('[SafePlay] Falha final:', e));
+        });
+    };
+
+    if (video.readyState >= 2) {
+      tryPlay();
+    } else {
+      video.onloadeddata = () => {
+        tryPlay();
+      };
+    }
+  }, []);
+
+  // Manipulador de chamadas para o Admin (evita ligações duplicadas para o mesmo membro)
   const handleAdminCall = useCallback((memberId: string) => {
     if (!peerRef.current || !currentStreamRef.current) return;
 
-    try {
-      if (activeCallsRef.current.has(memberId)) {
-        activeCallsRef.current.get(memberId)?.close();
+    // Se já tiver uma chamada ativa e aberta para este membro, não recria
+    if (activeCallsRef.current.has(memberId)) {
+      const existing = activeCallsRef.current.get(memberId);
+      if (existing && existing.open) {
+        console.log(`[PeerJS Admin] Membro ${memberId} já possui chamada ativa.`);
+        return;
       }
+      existing?.close();
+      activeCallsRef.current.delete(memberId);
+    }
 
+    try {
+      console.log(`[PeerJS Admin] Iniciando chamada única para membro: ${memberId}`);
       const call = peerRef.current.call(memberId, currentStreamRef.current);
       if (!call) return;
 
@@ -96,7 +136,7 @@ export function WatchParty() {
     }
   }, []);
 
-  // Membro conecta ao Admin via DataConnection para pedir a stream
+  // Membro conecta ao Admin via DataConnection para registrar presença
   const connectToAdmin = useCallback(() => {
     if (isAdmin || !peerRef.current || peerRef.current.destroyed) return;
 
@@ -108,12 +148,11 @@ export function WatchParty() {
 
       conn.on('open', () => {
         setIsConnecting(false);
-        setConnectionStatus('Conectado! Aguardando o filme...');
-        conn.send({ type: 'PULL_STREAM' });
+        setConnectionStatus('Conectado à sala! Aguardando o filme...');
       });
 
       conn.on('close', () => {
-        setConnectionStatus('Conexão com o Admin encerrada.');
+        setConnectionStatus('Conexão encerrada pelo Admin.');
       });
 
       conn.on('error', (err) => {
@@ -126,32 +165,6 @@ export function WatchParty() {
       setIsConnecting(false);
     }
   }, [isAdmin]);
-
-  // Forçar reprodução do vídeo
-  const forcePlayVideo = useCallback((unmute = false) => {
-    if (!videoRef.current) return;
-
-    if (unmute) {
-      videoRef.current.muted = false;
-      setIsMuted(false);
-    }
-
-    const playPromise = videoRef.current.play();
-    if (playPromise !== undefined) {
-      playPromise
-        .then(() => {
-          setIsPlaying(true);
-        })
-        .catch((err) => {
-          console.warn('[Play] Falha ao reproduzir desmutado, tentando mudo:', err);
-          if (videoRef.current) {
-            videoRef.current.muted = true;
-            setIsMuted(true);
-            videoRef.current.play().then(() => setIsPlaying(true)).catch(console.error);
-          }
-        });
-    }
-  }, []);
 
   // Inicialização do PeerJS
   useEffect(() => {
@@ -181,24 +194,26 @@ export function WatchParty() {
             console.log(`[PeerJS Admin] Novo membro conectado: ${memberId}`);
             connectedMembersRef.current.set(memberId, conn);
 
-            conn.on('data', (data: any) => {
-              if (data?.type === 'PULL_STREAM' && currentStreamRef.current) {
-                console.log(`[PeerJS Admin] Membro ${memberId} solicitou stream`);
-                handleAdminCall(memberId);
-              }
-            });
-
             conn.on('close', () => {
               connectedMembersRef.current.delete(memberId);
             });
 
+            // Se o Admin já estiver transmitindo, liga para o membro
             if (currentStreamRef.current) {
               handleAdminCall(memberId);
             }
           });
         } else {
+          // Membro recebe chamada do Admin
           peer.on('call', (call: MediaConnection) => {
             console.log('[PeerJS Membro] Chamada de vídeo recebida do Admin!');
+
+            // Fecha chamada anterior para não conflitar
+            if (memberActiveCallRef.current) {
+              memberActiveCallRef.current.close();
+            }
+            memberActiveCallRef.current = call;
+
             call.answer();
 
             call.on('stream', (remoteStream) => {
@@ -207,8 +222,10 @@ export function WatchParty() {
               setConnectionStatus('Ao vivo');
 
               if (videoRef.current) {
-                videoRef.current.srcObject = remoteStream;
-                forcePlayVideo(false);
+                if (videoRef.current.srcObject !== remoteStream) {
+                  videoRef.current.srcObject = remoteStream;
+                }
+                safePlay();
               }
             });
 
@@ -256,20 +273,7 @@ export function WatchParty() {
         peerRef.current = null;
       }
     };
-  }, [isAdmin, connectToAdmin, handleAdminCall, forcePlayVideo]);
-
-  // Reconexão periódica se o membro ainda não recebeu a stream
-  useEffect(() => {
-    if (isAdmin || isStreaming || hasRemoteStream) return;
-
-    const interval = setInterval(() => {
-      if (!hasRemoteStream && !isConnecting) {
-        connectToAdmin();
-      }
-    }, 6000);
-
-    return () => clearInterval(interval);
-  }, [isAdmin, isStreaming, hasRemoteStream, isConnecting, connectToAdmin]);
+  }, [isAdmin, connectToAdmin, handleAdminCall, safePlay]);
 
   // Iniciar partilha de ecrã (Admin)
   const startScreenShare = async () => {
@@ -289,6 +293,7 @@ export function WatchParty() {
       setIsStreaming(true);
       setConnectionStatus('Transmitindo ao vivo');
 
+      // Liga para todos os membros conectados sem duplicar
       connectedMembersRef.current.forEach((_conn, memberId) => {
         handleAdminCall(memberId);
       });
@@ -402,7 +407,15 @@ export function WatchParty() {
       <div
         ref={containerRef}
         onDoubleClick={toggleFullScreen}
-        onClick={() => !isAdmin && !isPlaying && forcePlayVideo(true)}
+        onClick={() => {
+          if (!isAdmin) {
+            safePlay();
+            if (isMuted) {
+              setIsMuted(false);
+              if (videoRef.current) videoRef.current.muted = false;
+            }
+          }
+        }}
         className="w-full max-w-6xl aspect-video bg-zinc-950 rounded-2xl overflow-hidden shadow-2xl relative border border-zinc-800/80 group cursor-pointer"
       >
         <video
@@ -425,7 +438,7 @@ export function WatchParty() {
                   const nextMuted = !isMuted;
                   setIsMuted(nextMuted);
                   if (videoRef.current) videoRef.current.muted = nextMuted;
-                  if (!isPlaying) forcePlayVideo(!nextMuted);
+                  if (!isPlaying) safePlay();
                 }
               }}
               disabled={isAdmin}
@@ -434,7 +447,7 @@ export function WatchParty() {
                   ? 'text-zinc-600 cursor-not-allowed'
                   : 'text-zinc-200 hover:text-amber-400 hover:bg-zinc-800/60'
               }`}
-              title={isAdmin ? 'Áudio do admin mutado localmente para evitar eco' : (isMuted ? 'Desmutar' : 'Mutar')}
+              title={isAdmin ? 'Áudio do admin mutado localmente' : (isMuted ? 'Desmutar' : 'Mutar')}
             >
               {isMuted || volume === 0 ? <VolumeX className="w-5 h-5 text-red-400" /> : <Volume2 className="w-5 h-5 text-amber-400" />}
             </button>
@@ -491,13 +504,15 @@ export function WatchParty() {
           </div>
         )}
 
-        {/* Botão Gigante de Interação para o Membro (Destrava Autoplay de Áudio e Vídeo) */}
-        {!isAdmin && (!isPlaying || isMuted) && (
+        {/* Botão Gigante de Interação para o Membro quando pausado ou sem som */}
+        {!isAdmin && (!isPlaying || isMuted) && hasRemoteStream && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 z-20 backdrop-blur-xs p-4 text-center pointer-events-none">
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                forcePlayVideo(true);
+                safePlay();
+                setIsMuted(false);
+                if (videoRef.current) videoRef.current.muted = false;
               }}
               className="pointer-events-auto flex items-center gap-3 px-8 py-4 bg-amber-500 text-black font-bold text-base sm:text-lg rounded-full hover:bg-amber-400 transition-transform hover:scale-105 shadow-2xl shadow-amber-500/30 mb-3 cursor-pointer animate-bounce"
             >
